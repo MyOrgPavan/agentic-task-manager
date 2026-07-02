@@ -29,6 +29,7 @@ jobs:
       scope: ${{ steps.parse.outputs.scope }}
       ticket: ${{ steps.parse.outputs.ticket }}
     steps:
+      - uses: actions/checkout@v4
       - id: parse
         env:
           GH_TOKEN: ${{ github.token }}
