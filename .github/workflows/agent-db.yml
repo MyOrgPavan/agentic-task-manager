@@ -31,72 +31,35 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
 
-      - name: Install opencode
-        run: npm install -g @opencode/cli
-
-      - name: Create agent branch
+      - name: Create implementation branch
         run: |
           BRANCH="impl/db/${{ github.event.inputs.ticket_id }}"
           git config user.name "agent-db"
           git config user.email "agent-db@github.local"
           git checkout -b "$BRANCH"
 
-      - name: Invoke coding agent
+      - name: Run tests
+        run: |
+          pytest backend/tests/ -v
+
+      - name: Create implementation PR
         env:
-          OPENCODE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
-          bash scripts/agent-wrapper.sh \
-            execute \
-            db \
-            "${{ github.event.inputs.ticket_id }}" \
-            "${{ github.event.inputs.command }}"
-
-      - name: Verify tests pass
-        run: |
-          pytest backend/tests/ -v || echo "TESTS_FAILED=true" >> $GITHUB_ENV
-
-      - name: Self-correct on failure
-        if: env.TESTS_FAILED == 'true'
-        env:
-          OPENCODE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          for i in $(seq 1 3); do
-            echo "--- Retry $i/3 ---"
-            bash scripts/agent-wrapper.sh \
-              evaluate \
-              db \
-              "${{ github.event.inputs.ticket_id }}" \
-              "Fix test failures. Run 'pytest backend/tests/' and ensure all pass."
-            pytest backend/tests/ -v && { echo "All tests pass"; exit 0; }
-          done
-          echo "Max retries reached. Escalating."
-          echo "ESCALATED=true" >> $GITHUB_ENV
-
-      - name: Add escalation label
-        if: env.ESCALATED == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh pr edit "${{ github.event.inputs.ticket_id }}" --add-label "needs-human"
-
-      - name: Commit and push
-        if: env.ESCALATED != 'true'
-        run: |
-          git add -A
-          git commit -m "db: ${{ github.event.inputs.command }} (#${{ github.event.inputs.ticket_id }})" || echo "No changes"
-          git push origin "impl/db/${{ github.event.inputs.ticket_id }}"
-
-      - name: Open PR
-        if: env.ESCALATED != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
+          TICKET="${{ github.event.inputs.ticket_id }}"
+          BRANCH="impl/db/${TICKET}"
+          PLAN_FILE="plans/plan-${TICKET}.md"
+          BODY_FILE="$PLAN_FILE"
+          if [ ! -f "$BODY_FILE" ]; then
+            printf "## Scope\ndb\n\n## Ticket\n#%s\n## Risk\nhigh - schema changes\n\n## Changes\n%s" "$TICKET" "${{ github.event.inputs.command }}" > /tmp/pr-body.md
+            BODY_FILE="/tmp/pr-body.md"
+          fi
           gh pr create \
             --base main \
-            --head "impl/db/${{ github.event.inputs.ticket_id }}" \
+            --head "$BRANCH" \
             --title "DB: ${{ github.event.inputs.command }}" \
-            --body "## Scope\ndb\n\n## Ticket\n#${{ github.event.inputs.ticket_id }}\n## Risk\nhigh - schema changes\n\n## Changes\n${{ github.event.inputs.command }}" \
-            --label db
+            --body-file "$BODY_FILE" \
+            --label db || echo "PR may already exist"
 
       - uses: actions/upload-artifact@v4
         with:
