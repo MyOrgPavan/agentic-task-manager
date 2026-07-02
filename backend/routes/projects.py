@@ -1,7 +1,8 @@
 # FR-03, FR-06
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import login_required, current_user
-from backend.models import db, Project
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+
+from backend.models import Project, db
 
 projects_bp = Blueprint("projects", __name__, template_folder="../templates")
 

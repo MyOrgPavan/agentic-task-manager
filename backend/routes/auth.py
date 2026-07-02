@@ -1,7 +1,8 @@
 # FR-02
-from flask import Blueprint, render_template, request, redirect, url_for, flash
-from flask_login import login_user, logout_user, login_required
-from backend.models import db, User
+from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask_login import login_required, login_user, logout_user
+
+from backend.models import User, db
 
 auth_bp = Blueprint("auth", __name__, template_folder="../templates")
 

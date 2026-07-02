@@ -1,8 +1,10 @@
 # FR-04, FR-06
 from datetime import datetime
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
-from flask_login import login_required, current_user
-from backend.models import db, Project, Task
+
+from flask import Blueprint, flash, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+
+from backend.models import Project, Task, db
 
 tasks_bp = Blueprint("tasks", __name__, template_folder="../templates")
 

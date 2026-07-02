@@ -1,8 +1,10 @@
 # FR-09
 import json
+
 import pytest
+
 from backend.app import create_app
-from backend.models import db, User, Project, Task
+from backend.models import User, db
 
 
 @pytest.fixture
