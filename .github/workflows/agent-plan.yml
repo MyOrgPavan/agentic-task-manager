@@ -34,22 +34,42 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
 
+      - name: Install opencode
+        run: npm install -g opencode-ai
+
       - name: Fetch issue details
+        id: issue
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           TICKET="${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}"
           gh issue view "$TICKET" --json title,body --jq '.title + "\n\n" + .body' > /tmp/issue-desc.txt 2>/dev/null || echo "Issue #$TICKET" > /tmp/issue-desc.txt
+          echo "ticket=$TICKET" >> $GITHUB_OUTPUT
 
-      - name: Generate plan artifact
+      - name: Generate plan with opencode
         run: |
           SCOPE="${{ github.event.inputs.scope || 'backend' }}"
-          TICKET="${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}"
-          python3 scripts/generate-plan.py \
-            --scope "$SCOPE" \
-            --ticket "$TICKET" \
-            --risk low \
-            --description-file /tmp/issue-desc.txt
+          TICKET="${{ steps.issue.outputs.ticket }}"
+          mkdir -p plans
+          echo "Generating plan for #$TICKET ($SCOPE scope)..."
+          opencode run -m opencode/big-pickle \
+            --dangerously-skip-permissions --print-logs \
+            -f /tmp/issue-desc.txt \
+            "You are a software architect designing implementation for issue #$TICKET.
+SCOPE: $SCOPE
+Read the attached issue description.
+Create file plans/plan-$TICKET.md with:
+## Scope
+## Ticket / Issue
+## Risk Level
+## Description
+## Success Criteria (checklist)
+## Files to Modify (specific paths)
+## Implementation Steps (numbered)
+## Rollback Strategy
+
+Study the codebase for real file paths and meaningful steps.
+Do NOT write any code. Only create the plan file."
 
       - uses: actions/upload-artifact@v4
         with:

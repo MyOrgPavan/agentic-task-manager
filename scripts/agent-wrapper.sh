@@ -52,4 +52,4 @@ $MEMORY_CTX
 
 # Execute opencode
 export OPENCODE_GITHUB_TOKEN="${GITHUB_TOKEN:-}"
-opencode --no-ask-user "$TASK"
+opencode run -m opencode/big-pickle --dangerously-skip-permissions --print-logs "$TASK"
