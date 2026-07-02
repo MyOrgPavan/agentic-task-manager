@@ -1,13 +1,5 @@
 name: Agent - Execute
-# A-01, A-03, A-04, B-03, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
-# F-11 Operational Reliability Checklist:
-# - concurrency controls: present
-# - risk-based plan gating: present
-# - durable evidence collected: present
-# - drift detection active: present (via drift-detection.yml)
-# - retry limits enforced: present (max 3 retries)
-# - rollback script available: present (scripts/rollback.sh)
-# - escalation path configured: present
+# A-01, A-03, A-04, B-03, A-05, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
 
 on:
   pull_request:
@@ -34,7 +26,19 @@ jobs:
       pull-requests: read
     outputs:
       approved: ${{ steps.check.outputs.approved }}
+      scope: ${{ steps.parse.outputs.scope }}
+      ticket: ${{ steps.parse.outputs.ticket }}
     steps:
+      - id: parse
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.inputs.pr_number }}"
+          BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
+          SCOPE=$(echo "$BODY" | grep -oP '## Scope\n\K\w+' || echo "backend")
+          TICKET=$(echo "$BODY" | grep -oP '#\K\d+' | head -1 || echo "0000")
+          echo "scope=$SCOPE" >> $GITHUB_OUTPUT
+          echo "ticket=$TICKET" >> $GITHUB_OUTPUT
       - id: check
         env:
           GH_TOKEN: ${{ github.token }}
@@ -45,7 +49,6 @@ jobs:
             echo "approved=true" >> $GITHUB_OUTPUT
           else
             echo "approved=false" >> $GITHUB_OUTPUT
-            echo "Plan not yet approved. Waiting for 'plan-approved' label."
           fi
 
   execute:
@@ -63,17 +66,74 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - name: Execute plan
+
+      - name: Install opencode
+        run: npm install -g @opencode/cli
+
+      - name: Invoke coding agent for execution
+        env:
+          OPENCODE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Executing changes per approved plan..."
+          SCOPE="${{ needs.check-plan-approved.outputs.scope }}"
+          TICKET="${{ needs.check-plan-approved.outputs.ticket }}"
+
+          bash scripts/agent-wrapper.sh \
+            execute \
+            "$SCOPE" \
+            "$TICKET" \
+            "Execute the approved plan at plans/plan-${TICKET}.md"
+
+      - name: Verify tests pass
+        run: |
+          pytest backend/tests/ -v || echo "TESTS_FAILED=true" >> $GITHUB_ENV
+
+      - name: Self-correct on failure
+        if: env.TESTS_FAILED == 'true'
+        env:
+          OPENCODE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          for i in $(seq 1 3); do
+            echo "--- Retry $i/3 ---"
+            bash scripts/agent-wrapper.sh \
+              evaluate \
+              "${{ needs.check-plan-approved.outputs.scope }}" \
+              "${{ needs.check-plan-approved.outputs.ticket }}" \
+              "Fix test failures. Run 'pytest backend/tests/' and ensure all pass."
+            pytest backend/tests/ -v && { echo "All tests pass"; exit 0; }
+          done
+          echo "Max retries reached. Escalating."
+          echo "ESCALATED=true" >> $GITHUB_ENV
+
+      - name: Add escalation label
+        if: env.ESCALATED == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr edit "${{ github.event.pull_request.number || github.event.inputs.pr_number }}" --add-label "needs-human"
+
       - name: Commit and push
+        if: env.ESCALATED != 'true'
         run: |
           git config user.name "agent-execute"
           git config user.email "agent-execute@github.local"
           git add -A
           git commit -m "Execute: changes per plan" || echo "No changes to commit"
           git push
+
       - uses: actions/upload-artifact@v4
         with:
           name: execution-evidence
           path: .
+
+  evaluate:
+    needs: execute
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record execution outcome
+        run: |
+          CONCLUSION="${{ needs.execute.result }}"
+          echo "Execution conclusion: $CONCLUSION"

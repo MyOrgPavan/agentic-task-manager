@@ -1,197 +1,101 @@
 # Add a Refresh Button — Agentic SDLC Walkthrough
 
-This guide walks through adding a **Refresh button** to the `/hello` page using the **Issue → Plan → PR → Review → Merge** lifecycle.
+This guide walks through adding a **Refresh button** to the `/hello` page using a coding agent (opencode) that handles **planning, execution, and PR creation** automatically. The human only creates the issue and approves.
 
 ## Prerequisites
 
-- GitHub CLI (`gh`) authenticated, or use `curl` with a token
+- GitHub token with `repo`, `issues:write`, `pull-requests:write`, `actions:write` scopes
 - Write access to `MyOrgPavan/agentic-task-manager`
-- Local clone of the repo
+- opencode CLI installed
 
 ## Step 1: Create a GitHub Issue
 
+Create an issue describing the feature. This is the only manual step.
+
 ```bash
 curl -sL -X POST \
-  -H "Authorization: token ghp_yOUR_TOKEN" \
+  -H "Authorization: token ghp_YOUR_TOKEN" \
   -H "Accept: application/vnd.github.v3+json" \
   https://api.github.com/repos/MyOrgPavan/agentic-task-manager/issues \
   -d '{
     "title": "Add refresh button to Hello World page",
-    "body": "Add a Refresh button to /hello that reloads the page.\n\n- [ ] Add button to backend/templates/hello.html\n- [ ] All tests must still pass"
+    "body": "Add a Refresh button to /hello that reloads the page."
   }'
 ```
 
-Records the returned issue number (e.g., `#4`).
+Note the returned issue number (e.g., `#4`).
 
-## Step 2: Create a Plan (Branch + Plan Artifact + Plan PR)
+## Step 2: Tell the Coding Agent to Execute
 
-### 2a. Generate the plan artifact
-
-```bash
-python3 scripts/generate-plan.py \
-  --scope frontend \
-  --ticket 4 \
-  --risk low
-```
-
-### 2b. Customize the plan file
-
-Edit `plans/plan-4.md` to include:
-
-```
-## Files to Modify
-- `backend/templates/hello.html` — add Refresh button
-
-## Plan
-1. Add a Bootstrap-styled Refresh button to `hello.html`
-2. Verify all 30 tests pass
-```
-
-### 2c. Push plan branch and create Plan PR
+The agent handles everything from here — planning, implementation, testing, and PRs.
 
 ```bash
-git checkout -b agent/frontend/4
-git add plans/plan-4.md
-git commit -m "Plan: scope=frontend ticket=4"
-git push origin agent/frontend/4
-
-BODY=$(cat plans/plan-4.md)
-curl -sL -X POST \
-  -H "Authorization: token ghp_yOUR_TOKEN" \
-  -H "Accept: application/vnd.github.v3+json" \
-  https://api.github.com/repos/MyOrgPavan/agentic-task-manager/pulls \
-  -d "{
-    \"title\": \"Plan: frontend / 4 - Add refresh button\",
-    \"head\": \"agent/frontend/4\",
-    \"base\": \"main\",
-    \"body\": $(echo \"$BODY\" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'),
-    \"labels\": [\"plan\"]
-  }"
+opencode "Implement the refresh button described in issue #4.
+Follow the full SDLC lifecycle:
+1. Create a plan artifact in plans/plan-4.md
+2. Create branch agent/frontend/4, commit the plan, push it, create a Plan PR with label 'plan'
+3. Wait for plan approval (add 'plan-approved' label to the Plan PR)
+4. Create branch impl/frontend/4, implement the button in backend/templates/hello.html, run tests, push, create an Implementation PR
+5. Merge the Implementation PR to main
+6. Close issue #4"
 ```
+
+### What the agent does automatically:
+
+| Phase | Agent action |
+|-------|-------------|
+| **Plan** | Runs `scripts/generate-plan.py`, customizes `plans/plan-4.md`, creates branch `agent/frontend/4`, commits plan, pushes, opens Plan PR with `plan` label |
+| **Approve** | *(human adds `plan-approved` label to the Plan PR — see step 3)* |
+| **Execute** | Creates branch `impl/frontend/4`, edits `backend/templates/hello.html`, runs `pytest`, commits, pushes, opens Implementation PR |
+| **CI** | Waits for CI checks (test, lint, typecheck) to pass on the Implementation PR |
+| **Merge** | Squash-merges the Implementation PR to `main` |
+| **Close** | Closes issue #4 with a reference to the merge commit |
 
 ## Step 3: Approve the Plan
 
+Once the agent creates the Plan PR, review it and add the `plan-approved` label:
+
 ```bash
-# Add plan-approved label to the Plan PR (replace 4 with your PR number)
 curl -sL -X POST \
-  -H "Authorization: token ghp_yOUR_TOKEN" \
+  -H "Authorization: token ghp_YOUR_TOKEN" \
   -H "Accept: application/vnd.github.v3+json" \
-  https://api.github.com/repos/MyOrgPavan/agentic-task-manager/issues/4/labels \
+  https://api.github.com/repos/MyOrgPavan/agentic-task-manager/issues/PLAN_PR_NUMBER/labels \
   -d '{"labels":["plan-approved"]}'
 ```
 
-> **Principle A-01 enforced:** No code is written until the plan is approved.
+> **Principle A-01 enforced:** The agent does not write any code until the plan is approved.
 
-## Step 4: Implement the Code
+## Step 4: Agent Executes & Opens Implementation PR
 
-### 4a. Switch to main and create implementation branch
-
-```bash
-git checkout main
-git pull origin main
-git checkout -b impl/frontend/4
-```
-
-### 4b. Add the Refresh button
-
-Edit `backend/templates/hello.html` to add:
-
-```html
-{% extends "base.html" %}
-{% block title %}Hello World{% endblock %}
-{% block content %}
-<div class="text-center mt-5">
-    <h1>Hello, World!</h1>
-    <p class="lead">Welcome to the Agentic Task Manager.</p>
-    <button onclick="location.reload()" class="btn btn-primary mt-3">
-        Refresh
-    </button>
-</div>
-{% endblock %}
-```
-
-### 4c. Verify tests pass
-
-```bash
-.venv/bin/pytest
-# Expect: 30 passed
-```
-
-### 4d. Push and create Implementation PR
-
-```bash
-git add -A
-git commit -m "Add Refresh button to /hello page"
-git push origin impl/frontend/4
-
-curl -sL -X POST \
-  -H "Authorization: token ghp_yOUR_TOKEN" \
-  -H "Accept: application/vnd.github.v3+json" \
-  https://api.github.com/repos/MyOrgPavan/agentic-task-manager/pulls \
-  -d '{
-    "title": "Add Refresh button to Hello World page (Issue #4)",
-    "head": "impl/frontend/4",
-    "base": "main",
-    "body": "Implements plan PR #5\n\nCloses #4\n\n## Changes\n- `backend/templates/hello.html` — added Refresh button",
-    "maintainer_can_modify": true
-  }'
-```
+After detecting the `plan-approved` label, the agent:
+1. Creates `impl/frontend/4` from `main`
+2. Adds the Refresh button to `backend/templates/hello.html`
+3. Runs `pytest` — verifies all 30 tests pass
+4. Commits, pushes, creates an **Implementation PR** with body `Closes #4`
+5. Monitors CI status
 
 ## Step 5: CI Validates
 
-CI (`ci.yml`) runs automatically on the PR:
+CI runs automatically on the Implementation PR (triggered by `pull_request` event in `ci.yml`):
 
-| Check | What it does |
-|-------|-------------|
-| `lint` | `ruff check backend/ scripts/ mcp-servers/` |
-| `typecheck` | `mypy backend/ scripts/ mcp-servers/ --ignore-missing-imports` |
-| `test` | `pytest backend/tests/ -v` |
+| Check | Status |
+|-------|--------|
+| `test` | 30/30 passed ✅ |
+| `lint` | `ruff check` passes ✅ |
+| `typecheck` | `mypy` passes ✅ |
 
-Monitor status:
+## Step 6: Agent Merges & Closes
 
-```bash
-curl -sL -H "Authorization: token ghp_yOUR_TOKEN" \
-  "https://api.github.com/repos/MyOrgPavan/agentic-task-manager/commits/$(git rev-parse HEAD)/check-runs" \
-  | python3 -c "
-import json,sys
-for r in json.load(sys.stdin)['check_runs']:
-    print(r['name'], r['status'], r.get('conclusion'))
-"
-```
+Once CI passes, the agent squash-merges the PR to `main` and closes issue #4.
 
-## Step 6: Merge to Main
+## Step 7: Verify
 
 ```bash
-# Squash merge the implementation PR (replace 6 with PR number)
-curl -sL -X PUT \
-  -H "Authorization: token ghp_yOUR_TOKEN" \
-  -H "Accept: application/vnd.github.v3+json" \
-  https://api.github.com/repos/MyOrgPavan/agentic-task-manager/pulls/6/merge \
-  -d '{
-    "commit_title": "Add Refresh button to Hello World page",
-    "merge_method": "squash"
-  }'
-```
-
-## Step 7: Close the Issue
-
-```bash
-curl -sL -X PATCH \
-  -H "Authorization: token ghp_yOUR_TOKEN" \
-  -H "Accept: application/vnd.github.v3+json" \
-  https://api.github.com/repos/MyOrgPavan/agentic-task-manager/issues/4 \
-  -d '{"state":"closed"}'
-```
-
-## Step 8: Verify on Main
-
-```bash
-git checkout main
-git pull origin main
+git checkout main && git pull
 .venv/bin/pytest  # 30 passed
 ```
 
-Start the app and visit `http://localhost:5000/hello` — the Refresh button should appear and reload the page on click.
+Browse to `http://localhost:5000/hello` — the Refresh button reloads the page on click.
 
 ---
 
@@ -199,18 +103,20 @@ Start the app and visit `http://localhost:5000/hello` — the Refresh button sho
 
 | Principle | How it's applied |
 |-----------|-----------------|
-| **A-01** | Plan is created and approved before any code |
-| **A-02** | Plan artifact is versioned (PR with labels) |
-| **A-03** | Execution follows the approved plan |
+| **A-01** | Plan gating — agent does not code until plan is approved |
+| **A-02** | Plan is a durable artifact (committed to a branch, PR with labels) |
+| **A-03** | Execution follows the approved plan scope |
 | **A-05** | CI validates every PR before merge |
-| **A-06** | Merge produces a durable commit on `main` |
-| **V-08** | Branch-per-feature isolation |
-| **F-11** | Operational checks run automatically |
+| **A-06** | Merge produces a permanent commit on `main` |
+| **B-04** | Read-only plan phase (plan PR) gated from write phase (impl PR) |
+| **V-08** | Branch-per-feature: `agent/frontend/N` for plan, `impl/frontend/N` for code |
 
-## Troubleshooting
+## Single-Command Shortcut
 
-| Problem | Solution |
-|---------|----------|
-| `workflow_dispatch` returns 422 | Ensure `name:` is the **first line** of the workflow YAML (comments after) |
-| PR check `check-plan-approved` fails | Add `plan-approved` label to the Plan PR, not the Implementation PR |
-| `ruff` lint fails on pre-existing code | Run `ruff check --fix` and commit; or set `pyproject.toml` line length to 120 |
+Once the issue exists, run:
+
+```bash
+opencode "Implement issue #N following the full SDLC lifecycle: plan, plan PR, wait for approval, implement, implementation PR, merge, close."
+```
+
+The agent handles every step — planning, branching, coding, testing, PR creation, merging, and issue closure — with zero manual file edits.

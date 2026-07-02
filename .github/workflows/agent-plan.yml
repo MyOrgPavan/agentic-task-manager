@@ -1,13 +1,6 @@
 name: Agent - Plan
-# A-01, A-02, B-03, B-04, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
-# F-11 Operational Reliability Checklist:
-# - concurrency controls: present
-# - risk-based plan gating: present
-# - durable evidence collected: present
-# - drift detection active: present (via drift-detection.yml)
-# - retry limits enforced: present (max 3 retries)
-# - rollback script available: present (scripts/rollback.sh)
-# - escalation path configured: present
+# A-01, A-02, B-03, B-04, A-03, A-04, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+
 on:
   issue_comment:
     types: [created]
@@ -39,22 +32,33 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install PyYAML
-      - name: Read risk classification
-        id: risk
-        run: |
-          python -c "
-import yaml
-with open('.github/risk-classification.yml') as f:
-    data = yaml.safe_load(f)
-print(f'risk_level={data.get(\"default_risk\", \"medium\")}')
-" >> $GITHUB_OUTPUT
+      - run: pip install -r requirements.txt
+
+      - name: Install opencode
+        run: npm install -g @opencode/cli
+
       - name: Generate plan artifact (read-only)
+        env:
+          OPENCODE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python scripts/generate-plan.py \
-            --scope "${{ github.event.inputs.scope || 'backend' }}" \
-            --ticket "${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}" \
-            --risk "${{ steps.risk.outputs.risk_level }}"
+          SCOPE="${{ github.event.inputs.scope || 'backend' }}"
+          TICKET="${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}"
+
+          bash scripts/agent-wrapper.sh \
+            plan \
+            "$SCOPE" \
+            "$TICKET" \
+            "Generate a plan at plans/plan-${TICKET}.md
+
+          Use scripts/generate-plan.py --scope $SCOPE --ticket $TICKET --risk low
+          then customize the plan with:
+          - Success criteria (tests must pass, no regressions)
+          - Files to modify with specific paths
+          - Implementation steps
+          - Rollback strategy
+
+          You must NOT write any code. Only generate the plan artifact."
+
       - uses: actions/upload-artifact@v4
         with:
           name: plan-artifact
@@ -75,22 +79,25 @@ print(f'risk_level={data.get(\"default_risk\", \"medium\")}')
           path: plans/
       - name: Create branch and commit plan
         run: |
-          BRANCH="agent/${{ github.event.inputs.scope || 'backend' }}/${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}"
+          SCOPE="${{ github.event.inputs.scope || 'backend' }}"
+          TICKET="${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}"
+          BRANCH="agent/${SCOPE}/${TICKET}"
           git config user.name "agent-plan"
           git config user.email "agent-plan@github.local"
           git checkout -b "$BRANCH"
           git add plans/
-          git commit -m "Plan: scope=${{ github.event.inputs.scope || 'backend' }} ticket=${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}"
+          git commit -m "Plan: scope=${SCOPE} ticket=${TICKET}"
           git push origin "$BRANCH"
       - name: Open plan PR
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          BRANCH="agent/${{ github.event.inputs.scope || 'backend' }}/${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}"
+          SCOPE="${{ github.event.inputs.scope || 'backend' }}"
+          TICKET="${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}"
+          BRANCH="agent/${SCOPE}/${TICKET}"
           gh pr create \
             --base main \
             --head "$BRANCH" \
-            --title "Plan: ${{ github.event.inputs.scope || 'backend' }} / ${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}" \
-            --body-file plans/plan-${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}.md \
+            --title "Plan: ${SCOPE} / ${TICKET}" \
+            --body-file "plans/plan-${TICKET}.md" \
             --label plan
-

@@ -1,47 +1,110 @@
-# C-06, F-07
-# MCP Allowlist - Controls which MCP servers and tools each agent can access.
+# C-06, F-07, A-02, A-03
+# MCP Allowlist — Phase-based tool gating per agent scope
 
-agent-backend:
-  servers:
-    - validate-schema-server
-    - agent-memory-server
-  tools:
-    - validate-schema
-    - format-code
-    - run-tests
-    - read-memory
-    - write-memory
+# Each agent scope defines allowed tools per phase:
+#   plan:     read-only tools (inspect, validate, search)
+#   execute:  write tools (create branch, write files, commit, push, create_pr)
+#   evaluate: diagnostic tools (read logs, read memory, add labels)
 
-agent-frontend:
-  servers:
-    - agent-memory-server
-  tools:
-    - format-code
-    - read-memory
+plan:
+  agent-backend:
+    tools:
+      - read_file
+      - search_files
+      - read_memory
+      - validate_schema
+    allow_write: false
 
-agent-db:
-  servers:
-    - validate-schema-server
-    - agent-memory-server
-  tools:
-    - validate-schema
-    - run-migrations
-    - read-memory
-    - write-memory
+  agent-frontend:
+    tools:
+      - read_file
+      - search_files
+      - read_memory
+    allow_write: false
 
-agent-audit:
-  servers:
-    - agent-memory-server
-  tools:
-    - read-memory
-    - validate-schema
+  agent-db:
+    tools:
+      - read_file
+      - search_files
+      - read_memory
+      - validate_schema
+    allow_write: false
 
-agent-integrator:
-  servers:
-    - agent-memory-server
-  tools:
-    - read-memory
+execute:
+  agent-backend:
+    tools:
+      - write_file
+      - create_branch
+      - commit
+      - push
+      - create_pr
+      - run_tests
+      - run_lint
+      - run_typecheck
+      - read_memory
+      - write_memory
+    allow_write: true
+    retry_limit: 3
 
-agent-merger:
-  servers: []
-  tools: []
+  agent-frontend:
+    tools:
+      - write_file
+      - create_branch
+      - commit
+      - push
+      - create_pr
+      - run_tests
+      - run_lint
+      - read_memory
+      - write_memory
+    allow_write: true
+    retry_limit: 3
+
+  agent-db:
+    tools:
+      - write_file
+      - create_branch
+      - commit
+      - push
+      - create_pr
+      - run_tests
+      - run_migrations
+      - read_memory
+      - write_memory
+    allow_write: true
+    retry_limit: 3
+    requires_human_review: true
+
+evaluate:
+  agent-backend:
+    tools:
+      - read_ci_logs
+      - read_memory
+      - write_memory
+      - add_label
+    allow_write: true
+    allowed_labels:
+      - needs-human
+      - agent-escalated
+
+  agent-frontend:
+    tools:
+      - read_ci_logs
+      - read_memory
+      - write_memory
+      - add_label
+    allow_write: true
+    allowed_labels:
+      - needs-human
+      - agent-escalated
+
+  agent-db:
+    tools:
+      - read_ci_logs
+      - read_memory
+      - write_memory
+      - add_label
+    allow_write: true
+    allowed_labels:
+      - needs-human
+      - agent-escalated

@@ -1,0 +1,104 @@
+name: Agent - Evaluate
+# A-05, B-02, E-02, E-03, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types:
+      - completed
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: agent-evaluate-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+
+jobs:
+  evaluate-failures:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install opencode
+        run: npm install -g @opencode/cli
+
+      - name: Identify failed PR and ticket
+        id: identify
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="${{ github.event.workflow_run.head_branch }}"
+          PR_NUMBER=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' || echo "")
+          TICKET=$(echo "$BRANCH" | grep -oP '\d+' | tail -1 || echo "0000")
+          SCOPE=$(echo "$BRANCH" | grep -oP '^[^/]+' || echo "backend")
+          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+          echo "ticket=$TICKET" >> $GITHUB_OUTPUT
+          echo "scope=$SCOPE" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Read CI failure logs
+        id: logs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          RUN_ID="${{ github.event.workflow_run.id }}"
+          JOBS_URL="https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/jobs"
+          FAILURES=$(curl -sL -H "Authorization: token $GH_TOKEN" "$JOBS_URL" | \
+            python3 -c "
+import json,sys
+data = json.load(sys.stdin)
+for job in data.get('jobs', []):
+    if job['conclusion'] == 'failure':
+        print(f\"Job: {job['name']} failed\")
+        for step in job.get('steps', []):
+            if step['conclusion'] == 'failure':
+                print(f\"  Step: {step['name']}\")
+        print()
+" 2>/dev/null || echo "Could not fetch logs")
+          echo "failures<<EOF" >> $GITHUB_OUTPUT
+          echo "$FAILURES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Invoke agent to fix failures
+        env:
+          OPENCODE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER="${{ steps.identify.outputs.pr_number }}"
+          SCOPE="${{ steps.identify.outputs.scope }}"
+          TICKET="${{ steps.identify.outputs.ticket }}"
+          BRANCH="${{ steps.identify.outputs.branch }}"
+
+          if [ -z "$PR_NUMBER" ]; then
+            echo "No PR found for branch $BRANCH. Skipping."
+            exit 0
+          fi
+
+          bash scripts/agent-wrapper.sh \
+            evaluate \
+            "$SCOPE" \
+            "$TICKET" \
+            "CI failed on PR #${PR_NUMBER}. Failures: ${{ steps.logs.outputs.failures }}
+
+          Checkout the branch, fix the failures, commit and push.
+          Target branch: $BRANCH"
+
+      - name: Verify fix
+        run: |
+          pytest backend/tests/ -v
+
+      - name: Escalate if still failing
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER="${{ steps.identify.outputs.pr_number }}"
+          gh pr edit "$PR_NUMBER" --add-label "needs-human"
