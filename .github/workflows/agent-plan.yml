@@ -50,26 +50,32 @@ jobs:
         run: |
           SCOPE="${{ github.event.inputs.scope || 'backend' }}"
           TICKET="${{ steps.issue.outputs.ticket }}"
+          ISSUE_DESC=$(cat /tmp/issue-desc.txt 2>/dev/null | head -c 3000)
           mkdir -p plans
+          printf '%s\n' \
+            "You are a software architect designing implementation for issue #${TICKET}." \
+            "SCOPE: ${SCOPE}" \
+            "" \
+            "## Issue Description" \
+            "${ISSUE_DESC}" \
+            "" \
+            "## Task" \
+            "Study the codebase in the current directory." \
+            "Create file plans/plan-${TICKET}.md with:" \
+            "## Scope" \
+            "## Ticket / Issue" \
+            "## Risk Level" \
+            "## Description" \
+            "## Success Criteria (checklist)" \
+            "## Files to Modify (specific paths)" \
+            "## Implementation Steps (numbered)" \
+            "## Rollback Strategy" \
+            "" \
+            "Do NOT write any code. Only create the plan file." > /tmp/plan-prompt.txt
           echo "Generating plan for #$TICKET ($SCOPE scope)..."
           opencode run -m opencode/big-pickle \
             --dangerously-skip-permissions --print-logs \
-            -f /tmp/issue-desc.txt \
-            "You are a software architect designing implementation for issue #$TICKET.
-SCOPE: $SCOPE
-Read the attached issue description.
-Create file plans/plan-$TICKET.md with:
-## Scope
-## Ticket / Issue
-## Risk Level
-## Description
-## Success Criteria (checklist)
-## Files to Modify (specific paths)
-## Implementation Steps (numbered)
-## Rollback Strategy
-
-Study the codebase for real file paths and meaningful steps.
-Do NOT write any code. Only create the plan file."
+            "$(cat /tmp/plan-prompt.txt)" 2>&1
 
       - uses: actions/upload-artifact@v4
         with:
