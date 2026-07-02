@@ -1,9 +1,11 @@
 # FR-01, FR-02, FR-03, FR-04, FR-05, FR-06, FR-07, FR-08
 import os
+
 from dotenv import load_dotenv
 from flask import Flask, render_template
 from flask_login import LoginManager
-from backend.models import db, User
+
+from backend.models import User, db
 
 load_dotenv()
 
@@ -32,14 +34,16 @@ def create_app(testing=False):
     login_manager.init_app(app)
 
     from backend.routes.auth import auth_bp
+    from backend.routes.comments import comments_bp
+    from backend.routes.hello import hello_bp
     from backend.routes.projects import projects_bp
     from backend.routes.tasks import tasks_bp
-    from backend.routes.comments import comments_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(projects_bp, url_prefix="/projects")
     app.register_blueprint(tasks_bp, url_prefix="")
     app.register_blueprint(comments_bp, url_prefix="")
+    app.register_blueprint(hello_bp)
 
     @app.route("/")
     def index():

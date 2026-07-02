@@ -1,8 +1,10 @@
 # FR-09
 import json
+
 import pytest
+
 from backend.app import create_app
-from backend.models import db, User, Project, Task
+from backend.models import User, db
 
 
 @pytest.fixture
@@ -174,6 +176,11 @@ class TestInputValidation:
         auth_client.post("/projects", data={"title": "Project"}, follow_redirects=True)
         resp = auth_client.post("/projects/1/tasks", data={"title": ""}, follow_redirects=True)
         assert resp.status_code == 200
+
+    def test_hello_endpoint(self, client):
+        resp = client.get("/hello")
+        assert resp.status_code == 200
+        assert b"Hello, World!" in resp.data
 
     def test_404_handling(self, client):
         resp = client.get("/nonexistent")

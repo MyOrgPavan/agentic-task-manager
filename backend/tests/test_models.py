@@ -1,7 +1,8 @@
 # FR-09
 import pytest
+
 from backend.app import create_app
-from backend.models import db, User, Project, Task, Comment
+from backend.models import Comment, Project, Task, User, db
 
 
 @pytest.fixture
