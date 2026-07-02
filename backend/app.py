@@ -35,11 +35,13 @@ def create_app(testing=False):
     from backend.routes.projects import projects_bp
     from backend.routes.tasks import tasks_bp
     from backend.routes.comments import comments_bp
+    from backend.routes.hello import hello_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(projects_bp, url_prefix="/projects")
     app.register_blueprint(tasks_bp, url_prefix="")
     app.register_blueprint(comments_bp, url_prefix="")
+    app.register_blueprint(hello_bp)
 
     @app.route("/")
     def index():

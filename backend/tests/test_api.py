@@ -175,6 +175,11 @@ class TestInputValidation:
         resp = auth_client.post("/projects/1/tasks", data={"title": ""}, follow_redirects=True)
         assert resp.status_code == 200
 
+    def test_hello_endpoint(self, client):
+        resp = client.get("/hello")
+        assert resp.status_code == 200
+        assert b"Hello, World!" in resp.data
+
     def test_404_handling(self, client):
         resp = client.get("/nonexistent")
         assert resp.status_code == 404
