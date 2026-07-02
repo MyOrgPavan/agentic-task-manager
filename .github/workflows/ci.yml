@@ -1,5 +1,5 @@
-# NFR-05, V-01, V-02, V-03, V-04, V-05, V-06
 name: CI
+# NFR-05, V-01, V-02, V-03, V-04, V-05, V-06
 on:
   push:
     branches: [main]

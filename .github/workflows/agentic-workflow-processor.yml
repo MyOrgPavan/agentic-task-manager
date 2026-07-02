@@ -1,11 +1,10 @@
+name: Agentic Workflow Processor
 # C-04
 # GitHub Agentic Workflow format: processes markdown intent + frontmatter + lock file
 # When an agent-intent.md file is pushed, this workflow:
 # 1. Parses the YAML frontmatter for scope, risk, and command
 # 2. Creates a lock file to prevent concurrent runs
 # 3. Triggers the appropriate agent workflow
-
-name: Agentic Workflow Processor
 
 on:
   push:

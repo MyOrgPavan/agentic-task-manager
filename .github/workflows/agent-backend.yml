@@ -1,3 +1,4 @@
+name: Agent - Backend
 # D-01, D-03, D-06, B-02, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
 # F-11 Operational Reliability Checklist:
 # - concurrency controls: present
@@ -7,7 +8,6 @@
 # - retry limits enforced: present (max 3 retries)
 # - rollback script available: present (scripts/rollback.sh)
 # - escalation path configured: present
-name: Agent - Backend
 
 on:
   workflow_dispatch:

@@ -1,5 +1,5 @@
-# F-03, F-01c, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
 name: Phase 2 - Auto-Merge Low Risk
+# F-03, F-01c, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
 
 on:
   pull_request:
