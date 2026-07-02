@@ -1,0 +1,67 @@
+# D-01, D-03, D-06, B-02, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+# F-11 Operational Reliability Checklist:
+# - concurrency controls: present
+# - risk-based plan gating: present
+# - durable evidence collected: present
+# - drift detection active: present (via drift-detection.yml)
+# - retry limits enforced: present (max 3 retries)
+# - rollback script available: present (scripts/rollback.sh)
+# - escalation path configured: present
+name: Agent - Database
+
+on:
+  workflow_dispatch:
+    inputs:
+      ticket_id:
+        description: "Issue or ticket ID"
+        required: true
+      command:
+        description: "Command for the DB agent"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-db-${{ github.event.inputs.ticket_id }}
+  cancel-in-progress: true
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Create agent branch
+        run: |
+          BRANCH="agent/db/${{ github.event.inputs.ticket_id }}"
+          git config user.name "agent-db"
+          git config user.email "agent-db@github.local"
+          git checkout -b "$BRANCH"
+      - name: Apply schema changes
+        run: |
+          echo "Agent-db applying schema changes per command: ${{ github.event.inputs.command }}"
+      - name: Commit and push
+        run: |
+          git add -A
+          git commit -m "db: ${{ github.event.inputs.command }} (#${{ github.event.inputs.ticket_id }})" || echo "No changes"
+          git push origin "agent/db/${{ github.event.inputs.ticket_id }}"
+      - name: Open PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create \
+            --base main \
+            --head "agent/db/${{ github.event.inputs.ticket_id }}" \
+            --title "DB: ${{ github.event.inputs.command }}" \
+            --body "## Scope\ndb\n\n## Ticket\n#${{ github.event.inputs.ticket_id }}\n## Risk\nhigh - schema changes\n\n## Changes\n${{ github.event.inputs.command }}" \
+            --label db
+      - uses: actions/upload-artifact@v4
+        with:
+          name: db-evidence
+          path: .

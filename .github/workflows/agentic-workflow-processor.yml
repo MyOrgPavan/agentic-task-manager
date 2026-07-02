@@ -1,0 +1,98 @@
+# C-04
+# GitHub Agentic Workflow format: processes markdown intent + frontmatter + lock file
+# When an agent-intent.md file is pushed, this workflow:
+# 1. Parses the YAML frontmatter for scope, risk, and command
+# 2. Creates a lock file to prevent concurrent runs
+# 3. Triggers the appropriate agent workflow
+
+name: Agentic Workflow Processor
+
+on:
+  push:
+    paths:
+      - "agent-intents/*.md"
+  workflow_dispatch:
+    inputs:
+      intent_file:
+        description: "Path to intent markdown file"
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: agentic-workflow-processor
+  cancel-in-progress: true
+
+jobs:
+  parse-intent:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse markdown intent with frontmatter
+        shell: bash
+        run: |
+          INTENT_FILE="${{ github.event.inputs.intent_file || format('agent-intents/{0}', github.event.head_commit.modified[0]) }}"
+          if [ ! -f "$INTENT_FILE" ]; then
+            echo "Intent file not found: $INTENT_FILE"
+            # Try to find the most recent intent file
+            INTENT_FILE=$(ls -t agent-intents/*.md 2>/dev/null | head -1)
+            if [ -z "$INTENT_FILE" ]; then
+              echo "No intent files found in agent-intents/"
+              exit 1
+            fi
+          fi
+
+          echo "Processing intent file: $INTENT_FILE"
+
+          # Extract YAML frontmatter (between --- markers)
+          FRONTMATTER=$(python3 -c "
+import yaml, re
+with open('$INTENT_FILE') as f:
+    content = f.read()
+match = re.match(r'^---\s*\n(.*?)\n---\s*\n', content, re.DOTALL)
+if match:
+    data = yaml.safe_load(match.group(1))
+    for k, v in data.items():
+        print(f'{k}={v}')
+else:
+    print('ERROR: No YAML frontmatter found')
+    exit(1)
+")
+
+          echo "$FRONTMATTER"
+          echo "$FRONTMATTER" >> $GITHUB_ENV
+
+      - name: Create lock file
+        run: |
+          mkdir -p locks
+          INTENT_FILE="${{ github.event.inputs.intent_file || format('agent-intents/{0}', github.event.head_commit.modified[0]) }}"
+          LOCK_FILE="locks/$(basename "$INTENT_FILE" .md).lock"
+          echo "Lock created at $(date)" > "$LOCK_FILE"
+          git config user.name "agentic-workflow-processor"
+          git config user.email "processor@github.local"
+          git add "$LOCK_FILE"
+          git commit -m "lock: $(basename "$INTENT_FILE")" || echo "Lock already exists or committed"
+          git push
+
+      - name: Dispatch agent workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SCOPE="${SCOPE:-backend}"
+          TICKET="${TICKET:-0000}"
+          COMMAND="${COMMAND:-execute}"
+
+          gh workflow run "Agent - ${SCOPE^}" \
+            --ref main \
+            --field ticket_id="$TICKET" \
+            --field command="$COMMAND"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: intent-processed
+          path: agent-intents/

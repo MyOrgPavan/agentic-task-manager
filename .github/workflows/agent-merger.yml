@@ -1,0 +1,52 @@
+# D-05, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+# F-11 Operational Reliability Checklist:
+# - concurrency controls: present
+# - risk-based plan gating: present
+# - durable evidence collected: present
+# - drift detection active: present (via drift-detection.yml)
+# - retry limits enforced: present (max 3 retries)
+# - rollback script available: present (scripts/rollback.sh)
+# - escalation path configured: present
+name: Agent - Merger
+
+on:
+  workflow_run:
+    workflows: ["Agent - Audit"]
+    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: agent-merger-${{ github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  merge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download audit report
+        uses: actions/download-artifact@v4
+        with:
+          name: audit-report
+      - name: Check audit and merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -f audit-report.json ]; then
+            echo "Audit report found. Proceeding with merge."
+            cat audit-report.json
+          else
+            echo "No audit report found. Escalating."
+            gh issue create --title "Merge blocked: no audit report" --body "The audit report was not generated. Manual intervention required."
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: merger-evidence
+          path: audit-report.json

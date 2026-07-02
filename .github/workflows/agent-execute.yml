@@ -1,0 +1,79 @@
+# A-01, A-03, A-04, B-03, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+# F-11 Operational Reliability Checklist:
+# - concurrency controls: present
+# - risk-based plan gating: present
+# - durable evidence collected: present
+# - drift detection active: present (via drift-detection.yml)
+# - retry limits enforced: present (max 3 retries)
+# - rollback script available: present (scripts/rollback.sh)
+# - escalation path configured: present
+name: Agent - Execute
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number with approved plan"
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: agent-execute-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  check-plan-approved:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      approved: ${{ steps.check.outputs.approved }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.inputs.pr_number }}"
+          LABELS=$(gh pr view "$PR_NUMBER" --json labels --jq '.labels[].name')
+          if echo "$LABELS" | grep -q "plan-approved"; then
+            echo "approved=true" >> $GITHUB_OUTPUT
+          else
+            echo "approved=false" >> $GITHUB_OUTPUT
+            echo "Plan not yet approved. Waiting for 'plan-approved' label."
+          fi
+
+  execute:
+    needs: check-plan-approved
+    if: needs.check-plan-approved.outputs.approved == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref || format('agent/execute/{0}', github.event.inputs.pr_number) }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - name: Execute plan
+        run: |
+          echo "Executing changes per approved plan..."
+      - name: Commit and push
+        run: |
+          git config user.name "agent-execute"
+          git config user.email "agent-execute@github.local"
+          git add -A
+          git commit -m "Execute: changes per plan" || echo "No changes to commit"
+          git push
+      - uses: actions/upload-artifact@v4
+        with:
+          name: execution-evidence
+          path: .

@@ -1,0 +1,43 @@
+# F-03, F-01d, F-08, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+name: Phase 4 - Production (Environment Gate)
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to deploy to production"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase4-production
+  cancel-in-progress: false
+
+jobs:
+  deploy-production:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
+    environment:
+      name: production
+      url: https://app.example.com
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+      - run: pytest backend/tests/ -v
+      - name: Deploy to production
+        run: |
+          echo "Deploying ${{ github.event.inputs.ref }} to production..."
+          echo "Production deployment complete."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: production-deployment
+          path: .

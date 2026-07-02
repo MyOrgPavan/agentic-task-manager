@@ -1,0 +1,64 @@
+# C-01
+# Reusable composite action for agent execution within GitHub Actions.
+# Provides isolated, repeatable agent execution environment.
+
+name: "Agent Executor"
+description: "Execute an agent task with plan validation, execution, and evidence collection"
+
+inputs:
+  agent-scope:
+    description: "Agent scope (backend/frontend/db)"
+    required: true
+  ticket-id:
+    description: "Issue or ticket ID"
+    required: true
+  command:
+    description: "Command for the agent to execute"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/checkout@v4
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      shell: bash
+      run: pip install -r ${{ github.action_path }}/../../../requirements.txt
+
+    - name: Read risk classification
+      id: risk
+      shell: bash
+      run: |
+        python -c "
+import yaml
+with open('${{ github.action_path }}/../../../.github/risk-classification.yml') as f:
+    data = yaml.safe_load(f)
+print(f'risk_level={data.get(\"default_risk\", \"medium\")}')
+" >> $GITHUB_OUTPUT
+
+    - name: Execute agent task
+      shell: bash
+      run: |
+        echo "Agent [${{ inputs.agent-scope }}] executing: ${{ inputs.command }}"
+        echo "Ticket: ${{ inputs.ticket-id }}"
+        echo "Risk level: ${{ steps.risk.outputs.risk_level }}"
+
+    - name: Collect durable evidence
+      shell: bash
+      run: |
+        echo "Collecting execution evidence..."
+        mkdir -p evidence
+        echo "scope=${{ inputs.agent-scope }}" > evidence/metadata.txt
+        echo "ticket=${{ inputs.ticket-id }}" >> evidence/metadata.txt
+        echo "command=${{ inputs.command }}" >> evidence/metadata.txt
+        echo "risk=${{ steps.risk.outputs.risk_level }}" >> evidence/metadata.txt
+
+    - name: Upload evidence artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: agent-evidence-${{ inputs.agent-scope }}-${{ inputs.ticket-id }}
+        path: evidence/

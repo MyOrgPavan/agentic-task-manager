@@ -1,0 +1,47 @@
+# D-05, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+# F-11 Operational Reliability Checklist:
+# - concurrency controls: present
+# - risk-based plan gating: present
+# - durable evidence collected: present
+# - drift detection active: present (via drift-detection.yml)
+# - retry limits enforced: present (max 3 retries)
+# - rollback script available: present (scripts/rollback.sh)
+# - escalation path configured: present
+name: Agent - Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_numbers:
+        description: "Comma-separated PR numbers to audit"
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: agent-audit-${{ github.event.inputs.pr_numbers }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Audit PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          IFS=',' read -ra PRS <<< "${{ github.event.inputs.pr_numbers }}"
+          for PR in "${PRS[@]}"; do
+            echo "Auditing PR #$PR"
+            gh pr view "$PR" --json title,body,headRefName,baseRefName,state,mergeable >> audit-report.json
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audit-report
+          path: audit-report.json

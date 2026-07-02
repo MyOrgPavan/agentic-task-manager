@@ -1,0 +1,37 @@
+# F-03, F-01b, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+name: Phase 1 - Pull Requests Only
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: phase1-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read risk classification
+        run: |
+          if [ -f .github/risk-classification.yml ]; then
+            echo "Risk classification found. Agent operates at propose-only level."
+          fi
+      - name: Add phase label
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr edit ${{ github.event.pull_request.number }} --add-label "phase-1"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: phase1-evidence
+          path: .

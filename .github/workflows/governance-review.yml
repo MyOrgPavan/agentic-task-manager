@@ -1,0 +1,46 @@
+# F-12, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+name: Governance Review
+
+on:
+  schedule:
+    - cron: "0 8 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: governance-review
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gather governance data
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "## Governance Report" > governance-report.md
+          echo "### Recent Agent Activity" >> governance-report.md
+          gh run list --limit 20 --json name,conclusion,createdAt --jq '.[] | "- \(.name): \(.conclusion) at \(.createdAt)"' >> governance-report.md
+          echo "" >> governance-report.md
+          echo "### Current Autonomy Levels" >> governance-report.md
+          cat .github/risk-classification.yml >> governance-report.md 2>/dev/null || echo "No risk classification file" >> governance-report.md
+      - name: Open governance issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Monthly Governance Review: $(date +%Y-%m)" \
+            --body-file governance-report.md \
+            --label governance
+      - uses: actions/upload-artifact@v4
+        with:
+          name: governance-report
+          path: governance-report.md

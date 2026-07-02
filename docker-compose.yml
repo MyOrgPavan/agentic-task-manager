@@ -1,0 +1,13 @@
+# FR-10
+services:
+  web:
+    build: .
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:///app.db
+    volumes:
+      - .:/app
+    command: gunicorn --bind 0.0.0.0:5000 --reload "backend.app:create_app()"

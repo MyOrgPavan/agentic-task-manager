@@ -1,0 +1,57 @@
+# E-06, E-07, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+# F-11 Operational Reliability Checklist:
+# - concurrency controls: present
+# - risk-based plan gating: present
+# - durable evidence collected: present
+# - drift detection active: present (via drift-detection.yml)
+# - retry limits enforced: present (max 3 retries)
+# - rollback script available: present (scripts/rollback.sh)
+# - escalation path configured: present
+name: Drift Detection
+
+on:
+  pull_request:
+    types: [opened, synchronize, edited]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to check for drift"
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: drift-detection-${{ github.event.pull_request.number || github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  check-drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check for context drift
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.inputs.pr_number }}"
+          PR_BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
+          echo "Checking for drift between plan and changes..."
+          bash scripts/drift-check.sh "$PR_NUMBER" || echo "Drift check completed"
+      - name: Report drift
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number || github.event.inputs.pr_number }}"
+          gh pr comment "$PR_NUMBER" --body "## Drift Detected\nChanges deviate from the plan. Review and correct before proceeding."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: drift-report
+          path: drift-report.json

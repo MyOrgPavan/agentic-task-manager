@@ -1,0 +1,31 @@
+# B-02, B-05, F-10, V-10
+# Path-based code ownership for agent scopes and sensitive files
+
+# Default: no specific owner (anyone can review)
+* @core-maintainers
+
+# GitHub infrastructure - requires senior review
+.github/ @core-maintainers
+.github/workflows/ @core-maintainers
+.github/CODEOWNERS @core-maintainers
+.github/risk-classification.yml @core-maintainers
+.github/mcp-allowlist.yml @core-maintainers
+
+# Schema and database changes (high risk)
+schema/ @core-maintainers
+backend/models.py @core-maintainers
+
+# Dependencies (high risk)
+requirements.txt @core-maintainers
+pyproject.toml @core-maintainers
+
+# Agent scopes
+/backend/ @agent-backend
+/backend/templates/ @agent-frontend
+/backend/static/ @agent-frontend
+/mcp-servers/ @agent-backend
+/scripts/ @core-maintainers
+
+# Docker
+Dockerfile @core-maintainers
+docker-compose.yml @core-maintainers

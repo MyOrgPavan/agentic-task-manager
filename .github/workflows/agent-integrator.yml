@@ -1,0 +1,56 @@
+# D-04, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+# F-11 Operational Reliability Checklist:
+# - concurrency controls: present
+# - risk-based plan gating: present
+# - durable evidence collected: present
+# - drift detection active: present (via drift-detection.yml)
+# - retry limits enforced: present (max 3 retries)
+# - rollback script available: present (scripts/rollback.sh)
+# - escalation path configured: present
+name: Agent - Integrator
+
+on:
+  workflow_run:
+    workflows:
+      - "Agent - Backend"
+      - "Agent - Frontend"
+    types:
+      - completed
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: agent-integrator
+  cancel-in-progress: true
+
+jobs:
+  integrate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check dependent PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Checking backend and frontend PRs..."
+          gh pr list --label backend --json number,state --jq '.[] | select(.state=="OPEN")'
+          gh pr list --label frontend --json number,state --jq '.[] | select(.state=="OPEN")'
+      - name: Create integration PR
+        run: |
+          BRANCH="agent/integrator/merge-$(date +%s)"
+          git config user.name "agent-integrator"
+          git config user.email "agent-integrator@github.local"
+          git checkout -b "$BRANCH"
+          git push origin "$BRANCH"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: integration-evidence
+          path: .

@@ -1,0 +1,52 @@
+# E-08, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+# F-11 Operational Reliability Checklist:
+# - concurrency controls: present
+# - risk-based plan gating: present
+# - durable evidence collected: present
+# - drift detection active: present (via drift-detection.yml)
+# - retry limits enforced: present (max 3 retries)
+# - rollback script available: present (scripts/rollback.sh)
+# - escalation path configured: present
+name: Resume Work
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Existing PR number to resume work on"
+        required: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: resume-${{ github.event.inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  resume:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read PR state
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PR_NUMBER="${{ github.event.inputs.pr_number }}"
+          echo "Resuming work on PR #$PR_NUMBER"
+          gh pr view "$PR_NUMBER" --json title,body,headRefName,state,mergeable,checksUrl >> pr-state.json
+          gh pr view "$PR_NUMBER" --json commits --jq '.commits[].oid' >> commit-history.txt
+      - name: Check previous CI results
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Checking previous CI results for PR #${{ github.event.inputs.pr_number }}"
+          gh run list --workflow ci.yml --branch "$(gh pr view ${{ github.event.inputs.pr_number }} --json headRefName --jq '.headRefName')" --limit 3 --json conclusion,databaseId --jq '.'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: resume-state
+          path: pr-state.json

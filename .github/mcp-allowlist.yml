@@ -1,0 +1,47 @@
+# C-06, F-07
+# MCP Allowlist - Controls which MCP servers and tools each agent can access.
+
+agent-backend:
+  servers:
+    - validate-schema-server
+    - agent-memory-server
+  tools:
+    - validate-schema
+    - format-code
+    - run-tests
+    - read-memory
+    - write-memory
+
+agent-frontend:
+  servers:
+    - agent-memory-server
+  tools:
+    - format-code
+    - read-memory
+
+agent-db:
+  servers:
+    - validate-schema-server
+    - agent-memory-server
+  tools:
+    - validate-schema
+    - run-migrations
+    - read-memory
+    - write-memory
+
+agent-audit:
+  servers:
+    - agent-memory-server
+  tools:
+    - read-memory
+    - validate-schema
+
+agent-integrator:
+  servers:
+    - agent-memory-server
+  tools:
+    - read-memory
+
+agent-merger:
+  servers: []
+  tools: []

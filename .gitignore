@@ -1,0 +1,8 @@
+# NFR-04
+.env
+*.pyc
+__pycache__/
+*.db
+pytest_report.xml
+.mypy_cache/
+.ruff_cache/

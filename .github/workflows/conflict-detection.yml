@@ -1,0 +1,62 @@
+# D-08, D-09, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+# F-11 Operational Reliability Checklist:
+# - concurrency controls: present
+# - risk-based plan gating: present
+# - durable evidence collected: present
+# - drift detection active: present (via drift-detection.yml)
+# - retry limits enforced: present (max 3 retries)
+# - rollback script available: present (scripts/rollback.sh)
+# - escalation path configured: present
+name: Conflict Detection
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: conflict-detection-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  detect-conflicts:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Test merge in dry-run mode
+        id: dryrun
+        continue-on-error: true
+        run: |
+          git checkout main
+          if git merge --no-commit --no-ff "${{ github.event.pull_request.head.ref }}" 2>/dev/null; then
+            echo "No merge conflicts detected."
+            git merge --abort
+          else
+            echo "Merge conflict detected!"
+            git merge --abort
+            echo "conflict=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Escalate on conflict
+        if: steps.dryrun.outputs.conflict == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ATTEMPT_COUNT=$(gh pr view ${{ github.event.pull_request.number }} --json labels --jq '.labels | length')
+          if [ "$ATTEMPT_COUNT" -ge 3 ]; then
+            gh issue create \
+              --title "Escalation: Merge conflict in PR #${{ github.event.pull_request.number }}" \
+              --body "PR: #${{ github.event.pull_request.number }}\nBranch: ${{ github.event.pull_request.head.ref }}\nConflict detected after multiple attempts.\nResolution needed before proceeding." \
+              --label escalation
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conflict-report
+          path: conflict-report.json

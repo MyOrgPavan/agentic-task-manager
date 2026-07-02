@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+<!-- FR-07 -->
+{% block title %}Home - Agentic Task Manager{% endblock %}
+{% block content %}
+<div class="text-center mt-5">
+    <h1>Agentic Task Manager</h1>
+    <p class="lead">Manage your projects and tasks with ease.</p>
+    {% if current_user.is_authenticated %}
+        <a href="{{ url_for('projects.list_projects') }}" class="btn btn-primary btn-lg">My Projects</a>
+    {% else %}
+        <a href="{{ url_for('auth.login') }}" class="btn btn-primary btn-lg">Get Started</a>
+    {% endif %}
+</div>
+{% endblock %}

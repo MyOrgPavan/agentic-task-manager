@@ -1,0 +1,36 @@
+# NFR-02, NFR-03, NFR-05
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "agentic-task-manager"
+version = "0.1.0"
+description = "Agentic Task Manager - Flask web app driven by agentic AI"
+requires-python = ">=3.11"
+dependencies = [
+    "Flask>=3.1",
+    "Flask-SQLAlchemy>=3.1",
+    "Flask-Login>=0.6",
+    "Flask-WTF>=1.2",
+    "SQLAlchemy>=2.0",
+    "Werkzeug>=3.1",
+    "WTForms>=3.2",
+    "python-dotenv>=1.0",
+    "gunicorn>=23.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["backend/tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true

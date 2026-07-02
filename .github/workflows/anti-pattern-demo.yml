@@ -1,0 +1,97 @@
+# A-07, B-09, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+name: Anti-Pattern Demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      pattern:
+        description: "Pattern to demonstrate (hidden-reasoning | mixed-planning)"
+        required: true
+        type: choice
+        options:
+          - hidden-reasoning
+          - mixed-planning
+
+permissions:
+  contents: read
+
+concurrency:
+  group: anti-pattern-demo
+  cancel-in-progress: true
+
+jobs:
+  hidden-reasoning:
+    if: ${{ github.event.inputs.pattern == 'hidden-reasoning' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Hidden Reasoning Anti-Pattern
+        run: |
+          echo "=== ANTI-PATTERN: Hidden Reasoning ==="
+          echo "Agent makes changes without an inspectable plan."
+          echo "Reviewers see only the final diff, with no context."
+          BRANCH="anti-pattern/hidden-reasoning-$(date +%s)"
+          git config user.name "anti-pattern-agent"
+          git config user.email "anti-pattern@github.local"
+          git checkout -b "$BRANCH"
+          echo "# Change made without plan" > anti-pattern-change.txt
+          git add -A
+          git commit -m "fix: quick change (no plan provided)"
+          git push origin "$BRANCH"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anti-pattern-hidden-reasoning
+          path: anti-pattern-change.txt
+
+  mixed-planning:
+    if: ${{ github.event.inputs.pattern == 'mixed-planning' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mixed Planning Anti-Pattern
+        run: |
+          echo "=== ANTI-PATTERN: Mixed Planning/Execution ==="
+          echo "Planning and execution are mixed into a single step."
+          echo "No inspectable plan artifact exists before code changes."
+          BRANCH="anti-pattern/mixed-planning-$(date +%s)"
+          git config user.name "anti-pattern-agent"
+          git config user.email "anti-pattern@github.local"
+          git checkout -b "$BRANCH"
+          echo "# Mixed plan+execute change" > mixed-change.txt
+          git add -A
+          git commit -m "feat: add feature (plan+execute combined)"
+          git push origin "$BRANCH"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: anti-pattern-mixed-planning
+          path: mixed-change.txt
+
+  correct-pattern:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Demonstrate Correct Pattern
+        run: |
+          echo "=== CORRECT PATTERN ==="
+          echo "1. Plan artifact created and committed first"
+          echo "2. Plan PR opened for review"
+          echo "3. Plan approved (label: plan-approved)"
+          echo "4. Execution follows only after approval"
+          echo "This workflow demonstrates the correct Plan -> Act -> Evaluate lifecycle."
+      - uses: actions/upload-artifact@v4
+        with:
+          name: correct-pattern-guide
+          path: .

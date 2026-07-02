@@ -1,0 +1,72 @@
+# F-02, V-06
+# Risk Classification Model
+# Each file path pattern maps to a risk level that determines agent autonomy.
+
+default_risk: medium
+
+rules:
+  - pattern: "backend/models.py"
+    risk: high
+    reason: "Database schema changes can break existing data and migrations."
+
+  - pattern: "backend/routes/*.py"
+    risk: medium
+    reason: "API route changes may affect contract with frontend."
+
+  - pattern: "backend/templates/*.html"
+    risk: low
+    reason: "Template changes are presentation-only and easily reversible."
+
+  - pattern: "backend/static/*"
+    risk: low
+    reason: "Static file changes are presentation-only."
+
+  - pattern: ".github/workflows/*.yml"
+    risk: critical
+    reason: "Workflow changes affect the entire agentic infrastructure."
+
+  - pattern: ".github/*.yml"
+    risk: high
+    reason: "Configuration changes affect governance and security."
+
+  - pattern: "requirements.txt"
+    risk: high
+    reason: "Dependency changes can introduce security or compatibility issues."
+
+  - pattern: "pyproject.toml"
+    risk: high
+    reason: "Build configuration changes affect the entire project."
+
+  - pattern: "Dockerfile"
+    risk: medium
+    reason: "Container changes affect deployment but are testable."
+
+  - pattern: "docker-compose.yml"
+    risk: medium
+    reason: "Orchestration changes affect local development."
+
+  - pattern: "mcp-servers/*.py"
+    risk: high
+    reason: "MCP server changes affect agent tooling capabilities."
+
+  - pattern: "scripts/*.sh"
+    risk: medium
+    reason: "Script changes may affect automation reliability."
+
+  - pattern: "scripts/*.py"
+    risk: medium
+    reason: "Script changes may affect automation reliability."
+
+autonomy_levels:
+  critical:
+    - read_only
+    - propose_only
+  high:
+    - propose_only
+    - execute_with_guardrails
+  medium:
+    - propose_only
+    - execute_with_guardrails
+  low:
+    - execute_with_guardrails
+    - auto_merge

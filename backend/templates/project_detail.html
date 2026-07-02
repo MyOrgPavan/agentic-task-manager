@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+<!-- FR-03, FR-04, FR-07 -->
+{% block title %}{{ project.title }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h2>{{ project.title }}</h2>
+        <p class="text-muted">{{ project.description }}</p>
+        <span class="badge bg-{{ 'success' if project.status == 'active' else 'secondary' }}">{{ project.status }}</span>
+        <span class="badge bg-{{ 'danger' if project.priority == 'high' else 'warning' if project.priority == 'medium' else 'info' }}">{{ project.priority }}</span>
+    </div>
+    <form method="POST" action="{{ url_for('projects.delete_project', project_id=project.id) }}" onsubmit="return confirm('Delete this project?')">
+        <input type="hidden" name="_method" value="DELETE">
+        <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+    </form>
+</div>
+
+<hr>
+<h4>Tasks</h4>
+<form method="POST" action="{{ url_for('tasks.create_task', project_id=project.id) }}" class="mb-3">
+    <div class="row g-2">
+        <div class="col-md-5">
+            <input type="text" name="title" class="form-control" placeholder="Task title" required>
+        </div>
+        <div class="col-md-4">
+            <input type="text" name="description" class="form-control" placeholder="Description (optional)">
+        </div>
+        <div class="col-md-2">
+            <input type="date" name="due_date" class="form-control">
+        </div>
+        <div class="col-md-1">
+            <button type="submit" class="btn btn-primary w-100">Add</button>
+        </div>
+    </div>
+</form>
+{% if project.tasks.all() %}
+    <ul class="list-group">
+    {% for task in project.tasks.all() %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            <a href="{{ url_for('tasks.get_task', task_id=task.id) }}">{{ task.title }}</a>
+            <div>
+                <span class="badge bg-{{ 'success' if task.status == 'done' else 'warning' if task.status == 'in_progress' else 'secondary' }}">{{ task.status }}</span>
+                {% if task.due_date %}<small class="text-muted ms-2">Due: {{ task.due_date }}</small>{% endif %}
+            </div>
+        </li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p class="text-muted">No tasks yet.</p>
+{% endif %}
+{% endblock %}
