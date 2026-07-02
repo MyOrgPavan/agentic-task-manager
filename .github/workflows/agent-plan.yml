@@ -34,30 +34,26 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
 
-      - name: Install opencode
-        run: npm install -g @opencode/cli
-
-      - name: Generate plan artifact (read-only)
+      - name: Fetch issue details
         env:
-          OPENCODE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TICKET="${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}"
+          if [ -n "${{ github.event.issue.number }}" ]; then
+            gh issue view "$TICKET" --json title,body --jq '.title + "\n\n" + .body' > /tmp/issue-desc.txt 2>/dev/null || echo "Issue #$TICKET" > /tmp/issue-desc.txt
+          else
+            echo "Ticket #$TICKET" > /tmp/issue-desc.txt
+          fi
+
+      - name: Generate plan artifact
         run: |
           SCOPE="${{ github.event.inputs.scope || 'backend' }}"
           TICKET="${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}"
-
-          bash scripts/agent-wrapper.sh \
-            plan \
-            "$SCOPE" \
-            "$TICKET" \
-            "Generate a plan at plans/plan-${TICKET}.md
-
-          Use scripts/generate-plan.py --scope $SCOPE --ticket $TICKET --risk low
-          then customize the plan with:
-          - Success criteria (tests must pass, no regressions)
-          - Files to modify with specific paths
-          - Implementation steps
-          - Rollback strategy
-
-          You must NOT write any code. Only generate the plan artifact."
+          python3 scripts/generate-plan.py \
+            --scope "$SCOPE" \
+            --ticket "$TICKET" \
+            --risk low \
+            --description-file /tmp/issue-desc.txt
 
       - uses: actions/upload-artifact@v4
         with:
