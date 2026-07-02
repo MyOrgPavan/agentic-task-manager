@@ -93,3 +93,4 @@ print(f'risk_level={data.get(\"default_risk\", \"medium\")}')
             --title "Plan: ${{ github.event.inputs.scope || 'backend' }} / ${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}" \
             --body-file plans/plan-${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}.md \
             --label plan
+
