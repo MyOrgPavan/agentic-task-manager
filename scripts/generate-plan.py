@@ -94,7 +94,7 @@ def generate_plan(scope: str, ticket: str, risk: str, description: str = "") -> 
     for f in files:
         plan += f"- {f}\n"
 
-    plan += f"""
+    plan += """
 ## Implementation Steps
 """
     for i, step in enumerate(steps, 1):
