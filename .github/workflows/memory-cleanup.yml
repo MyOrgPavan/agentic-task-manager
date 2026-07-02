@@ -26,13 +26,7 @@ jobs:
         run: |
           if [ -f .github/AGENTS_MEMORY.md ]; then
             echo "Pruning entries older than 30 days..."
-            ARCHIVED=$(python -c "
-import re
-with open('.github/AGENTS_MEMORY.md') as f:
-    content = f.read()
-entries = re.findall(r'## (.*?)\n.*?\((.*?)\)', content, re.DOTALL)
-print('Found entries:', len(entries))
-")
+            ARCHIVED=$(python3 scripts/count_memory_entries.py)
             echo "$ARCHIVED"
           fi
       - name: Archive to issue

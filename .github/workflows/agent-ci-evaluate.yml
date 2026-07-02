@@ -53,17 +53,7 @@ jobs:
           RUN_ID="${{ github.event.workflow_run.id }}"
           JOBS_URL="https://api.github.com/repos/${{ github.repository }}/actions/runs/$RUN_ID/jobs"
           FAILURES=$(curl -sL -H "Authorization: token $GH_TOKEN" "$JOBS_URL" | \
-            python3 -c "
-import json,sys
-data = json.load(sys.stdin)
-for job in data.get('jobs', []):
-    if job['conclusion'] == 'failure':
-        print(f\"Job: {job['name']} failed\")
-        for step in job.get('steps', []):
-            if step['conclusion'] == 'failure':
-                print(f\"  Step: {step['name']}\")
-        print()
-" 2>/dev/null || echo "Could not fetch logs")
+            python3 scripts/fetch_failures.py 2>/dev/null || echo "Could not fetch logs")
           echo "failures<<EOF" >> $GITHUB_OUTPUT
           echo "$FAILURES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT

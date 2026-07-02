@@ -96,19 +96,7 @@ jobs:
           fi
           echo "Processing intent file: $INTENT_FILE"
 
-          FRONTMATTER=$(python3 -c "
-import yaml, re
-with open('$INTENT_FILE') as f:
-    content = f.read()
-match = re.match(r'^---\s*\n(.*?)\n---\s*\n', content, re.DOTALL)
-if match:
-    data = yaml.safe_load(match.group(1))
-    for k, v in data.items():
-        print(f'{k}={v}')
-else:
-    print('ERROR: No YAML frontmatter found')
-    exit(1)
-")
+          FRONTMATTER=$(python3 scripts/parse_frontmatter.py "$INTENT_FILE")
           echo "$FRONTMATTER"
           echo "$FRONTMATTER" >> $GITHUB_ENV
 
