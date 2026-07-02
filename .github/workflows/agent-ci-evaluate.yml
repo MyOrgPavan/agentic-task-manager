@@ -28,16 +28,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install opencode
-        run: npm install -g @opencode/cli
-
       - name: Identify failed PR and ticket
         id: identify
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           BRANCH="${{ github.event.workflow_run.head_branch }}"
-          PR_NUMBER=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' || echo "")
+          gh pr list --head "$BRANCH" --json number --jq '.[0].number' > /tmp/pr_number.txt 2>/dev/null || echo "" > /tmp/pr_number.txt
+          PR_NUMBER=$(cat /tmp/pr_number.txt)
           TICKET=$(echo "$BRANCH" | grep -oP '\d+' | tail -1 || echo "0000")
           SCOPE=$(echo "$BRANCH" | grep -oP '^[^/]+' || echo "backend")
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
@@ -58,37 +56,11 @@ jobs:
           echo "$FAILURES" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-      - name: Invoke agent to fix failures
-        env:
-          OPENCODE_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PR_NUMBER="${{ steps.identify.outputs.pr_number }}"
-          SCOPE="${{ steps.identify.outputs.scope }}"
-          TICKET="${{ steps.identify.outputs.ticket }}"
-          BRANCH="${{ steps.identify.outputs.branch }}"
-
-          if [ -z "$PR_NUMBER" ]; then
-            echo "No PR found for branch $BRANCH. Skipping."
-            exit 0
-          fi
-
-          bash scripts/agent-wrapper.sh \
-            evaluate \
-            "$SCOPE" \
-            "$TICKET" \
-            "CI failed on PR #${PR_NUMBER}. Failures: ${{ steps.logs.outputs.failures }}
-
-          Checkout the branch, fix the failures, commit and push.
-          Target branch: $BRANCH"
-
-      - name: Verify fix
-        run: |
-          pytest backend/tests/ -v
-
-      - name: Escalate if still failing
-        if: failure()
+      - name: Add escalation label
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           PR_NUMBER="${{ steps.identify.outputs.pr_number }}"
-          gh pr edit "$PR_NUMBER" --add-label "needs-human"
+          if [ -n "$PR_NUMBER" ]; then
+            gh pr edit "$PR_NUMBER" --add-label "needs-human"
+          fi
