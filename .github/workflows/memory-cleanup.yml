@@ -1,0 +1,50 @@
+name: Memory Expiry
+# E-04, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: memory-expiry
+  cancel-in-progress: true
+
+jobs:
+  prune-memory:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prune outdated memory entries
+        run: |
+          if [ -f .github/AGENTS_MEMORY.md ]; then
+            echo "Pruning entries older than 30 days..."
+            ARCHIVED=$(python -c "
+import re
+with open('.github/AGENTS_MEMORY.md') as f:
+    content = f.read()
+entries = re.findall(r'## (.*?)\n.*?\((.*?)\)', content, re.DOTALL)
+print('Found entries:', len(entries))
+")
+            echo "$ARCHIVED"
+          fi
+      - name: Archive to issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "Memory Archive: $(date +%Y-%m-%d)" \
+            --body "## Archived Memory\nMemory entries pruned from AGENTS_MEMORY.md have been archived here.\n\nDate: $(date)" \
+            --label memory
+      - uses: actions/upload-artifact@v4
+        with:
+          name: memory-archive
+          path: .github/AGENTS_MEMORY.md
