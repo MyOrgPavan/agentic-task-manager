@@ -82,7 +82,7 @@ jobs:
           git push origin "$BRANCH"
       - name: Open plan PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           SCOPE="${{ github.event.inputs.scope || 'backend' }}"
           TICKET="${{ github.event.issue.number || github.event.inputs.ticket_id || '0000' }}"
