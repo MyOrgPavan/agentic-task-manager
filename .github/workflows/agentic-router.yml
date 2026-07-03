@@ -107,11 +107,10 @@ jobs:
         run: |
           INTENT_FILE="${{ github.event.inputs.intent_file }}"
           if [ -z "$INTENT_FILE" ]; then
-            # Find intent files changed in the triggering commit
-            INTENT_FILE=$(git diff-tree --no-commit-id -r --name-only HEAD | grep '^agent-intents/.*\.md$' | head -1)
+            # Find intent files in the HEAD commit (works in shallow clones)
+            INTENT_FILE=$(git log -1 --name-only --format="%H" | tail -n +2 | grep '^agent-intents/.*\.md$' | head -1)
           fi
           if [ -z "$INTENT_FILE" ] || [ ! -f "$INTENT_FILE" ]; then
-            # Fallback: scan the directory
             INTENT_FILE=$(ls agent-intents/*.md 2>/dev/null | head -1)
           fi
           if [ -z "$INTENT_FILE" ] || [ ! -f "$INTENT_FILE" ]; then
