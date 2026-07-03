@@ -37,6 +37,7 @@ jobs:
           PR_NUMBER="${{ github.event.pull_request.number || github.event.inputs.pr_number }}"
           BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
           SCOPE=$(echo "$BODY" | grep -oP '## Scope\n\K\w+' || echo "backend")
+          SCOPE=$(echo "$SCOPE" | tr '[:upper:]' '[:lower:]')
           TICKET=$(echo "$BODY" | grep -oP '#\K\d+' | head -1 || echo "0000")
           echo "scope=$SCOPE" >> $GITHUB_OUTPUT
           echo "ticket=$TICKET" >> $GITHUB_OUTPUT
@@ -67,6 +68,25 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
+
+      - name: Install opencode
+        run: npm install -g opencode-ai
+
+      - name: Implement changes with opencode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SCOPE="${{ needs.check-plan-approved.outputs.scope }}"
+          TICKET="${{ needs.check-plan-approved.outputs.ticket }}"
+          PLAN_FILE="plans/plan-${TICKET}.md"
+          echo "Implementing plan from ${PLAN_FILE}..."
+          opencode run -m opencode/big-pickle \
+            --dangerously-skip-permissions --print-logs \
+            "Read the plan file ${PLAN_FILE} and implement every step.
+             You are a frontend-focused coding agent working with Bootstrap 5 and Jinja2 HTML templates.
+             Make the exact file modifications described in the plan.
+             After modifying files, run: pytest backend/tests/ -v
+             Fix any test failures if they arise."
 
       - name: Create implementation PR
         env:
