@@ -41,12 +41,12 @@ jobs:
           docker compose up -d staging
           echo "Staging deployment complete."
           echo "Container: task-manager-staging"
-          echo "Port: 8080"
+          echo "Port: 8082"
 
       - name: Health check
         run: |
           sleep 3
-          curl -sf http://localhost:8080/ || echo "Warning: Health check failed"
+          curl -sf http://localhost:8082/ || echo "Warning: Health check failed"
 
       - uses: actions/upload-artifact@v4
         with:

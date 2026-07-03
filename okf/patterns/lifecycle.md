@@ -45,14 +45,14 @@ After the Impl PR is merged to `main`, the code is deployed as a Docker containe
 
 | Step | Environment | Trigger | Port |
 |------|-------------|---------|------|
-| Staging | `task-manager-staging` | Push to `main` (auto) | 8080 |
+| Staging | `task-manager-staging` | Push to `main` (auto) | 8082 |
 | Production | `task-manager-prod` | Manual dispatch + approval | 8080 |
 
 **Staging** deploys automatically on every merge. **Production** requires a human to trigger the workflow and a second human to approve via the GitHub Environment gate.
 
 **Deploy workflow:**
 1. Build Docker image from merged code
-2. Stop any existing container on port 8080
+2. Stop any existing container on the target port
 3. Start new container
 4. Health check via `curl http://localhost:8080/`
 

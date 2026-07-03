@@ -6,7 +6,7 @@ This document provides step-by-step instructions to run each end-to-end scenario
 
 ## S-01: Full Lifecycle
 
-**Scenario:** Issue created -> agent drafts plan PR -> plan approved -> agent executes -> CI passes -> PR merged -> deployed to staging.
+**Scenario:** Issue created → agent drafts plan PR → plan approved → agent executes → CI passes → PR merged → deployed to staging (port 8082).
 
 ### Steps:
 1. Create a GitHub Issue describing a new feature (e.g., "Add task filtering by status").

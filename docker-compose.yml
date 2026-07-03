@@ -17,7 +17,7 @@ services:
     build: .
     container_name: task-manager-staging
     ports:
-      - "8080:5000"
+      - "8082:5000"
     env_file:
       - .env
     environment:

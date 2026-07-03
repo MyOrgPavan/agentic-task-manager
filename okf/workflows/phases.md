@@ -29,10 +29,10 @@ Behavior: On every merge to main, the staging environment is automatically deplo
 **Docker steps:**
 1. `docker compose build staging`
 2. `docker compose stop staging && docker compose rm -f staging`
-3. `docker compose up -d staging` → container `task-manager-staging` on port `8080`
-4. Health check: `curl http://localhost:8080/`
+3. `docker compose up -d staging` → container `task-manager-staging` on port `8082`
+4. Health check: `curl http://localhost:8082/`
 
-**URL:** `http://localhost:8080`
+**URL:** `http://localhost:8082`
 
 ## Phase 4 — Production Deploy
 
@@ -48,7 +48,7 @@ Behavior: Production deployment requires manual workflow dispatch and environmen
 
 **URL:** `http://localhost:8080`
 
-**Note:** Staging and production share port 8080 on this machine. The deploy workflow stops the running container before starting the replacement.
+**Note:** Staging runs on port 8082, production on port 8080. Both can run simultaneously.
 
 ## Autonomy Mapping
 

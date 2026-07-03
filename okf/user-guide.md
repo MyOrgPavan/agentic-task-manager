@@ -8,7 +8,7 @@ timestamp: "2026-07-03T09:45:00Z"
 
 # User Guide — From Issue to Merged Code
 
-This guide walks through the complete lifecycle: create a GitHub Issue → opencode plans → you approve → opencode implements → merge → deploy to Docker on localhost:8080.
+This guide walks through the complete lifecycle: create a GitHub Issue → opencode plans → you approve → opencode implements → merge → deploy to Docker on localhost:8082 (staging) / :8080 (production).
 
 ## Step 1: Create a GitHub Issue
 
@@ -121,10 +121,10 @@ Once merged to `main`, the **Phase 3 - Auto-Deploy to Staging** workflow runs au
 1. Runs lint, typecheck, and tests
 2. Builds the Docker image for the `staging` service
 3. Stops any existing `task-manager-staging` container
-4. Starts the new container on **port 8080**
-5. Runs a health check against `http://localhost:8080/`
+4. Starts the new container on **port 8082**
+5. Runs a health check against `http://localhost:8082/`
 
-The staging URL is: `http://localhost:8080`
+The staging URL is: `http://localhost:8082`
 
 ## Step 8: Deploy to Production
 
@@ -164,7 +164,7 @@ curl http://localhost:8080/         → health check
 
 The production URL is: `http://localhost:8080`
 
-**Note:** Since staging and production run on the same machine on the same port, only one can run at a time. The deploy workflow stops the previous container before starting the new one.
+**Note:** Staging runs on port **8082** and production on port **8080**, so both can run simultaneously on the same machine.
 
 ## Troubleshooting
 
@@ -176,7 +176,7 @@ The production URL is: `http://localhost:8080`
 | opencode didn't modify all files | Plan steps unclear | Be more specific in the issue description |
 | Staging deploy not running | Phase 3 only triggers on push to main | Merge the Impl PR first |
 | Production deploy hangs at "waiting for approval" | Environment requires reviewer | Check your GitHub notifications and approve |
-| Container fails to start on :8080 | Port already in use | Stop the old container first (handled automatically) |
+| Container fails to start | Port already in use | Change the port mapping in docker-compose.yml |
 | Health check fails after deploy | App didn't start in time | Check docker logs: `docker logs task-manager-prod` |
 
 ## Alternative Entry Point: Intent Files
