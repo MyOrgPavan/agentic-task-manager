@@ -1,6 +1,5 @@
-/* FR-07 */
 body {
-    background-color: #f8f9fa;
+    background-color: var(--bg-secondary, #f8f9fa);
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -10,33 +9,57 @@ main {
 }
 
 [data-bs-theme="dark"] body {
-    background-color: #1a1d20;
+    background-color: var(--bg-primary, #1a1d20);
+    color: var(--text-primary, #dee2e6);
 }
 
 [data-bs-theme="dark"] .card {
-    background-color: #212529;
-    border-color: #373b3e;
+    background-color: var(--card-bg, #212529);
+    border-color: var(--border-color, #373b3e);
+    color: var(--text-primary, #dee2e6);
 }
 
 [data-bs-theme="dark"] .alert {
-    background-color: #2c3034;
-    border-color: #373b3e;
-    color: #dee2e6;
+    background-color: var(--bg-secondary, #2c3034);
+    border-color: var(--border-color, #373b3e);
+    color: var(--text-primary, #dee2e6);
 }
 
 [data-bs-theme="dark"] .list-group-item {
-    background-color: #212529;
-    border-color: #373b3e;
-    color: #dee2e6;
+    background-color: var(--card-bg, #212529);
+    border-color: var(--border-color, #373b3e);
+    color: var(--text-primary, #dee2e6);
 }
 
 [data-bs-theme="dark"] .table {
-    color: #dee2e6;
+    color: var(--text-primary, #dee2e6);
 }
 
 [data-bs-theme="dark"] .table td,
 [data-bs-theme="dark"] .table th {
-    border-color: #373b3e;
+    border-color: var(--border-color, #373b3e);
+}
+
+[data-bs-theme="dark"] .form-control,
+[data-bs-theme="dark"] .form-select {
+    background-color: var(--input-bg, #2c3034);
+    border-color: var(--input-border, #495057);
+    color: var(--input-color, #dee2e6);
+}
+
+[data-bs-theme="dark"] .form-control:focus,
+[data-bs-theme="dark"] .form-select:focus {
+    background-color: var(--input-bg, #2c3034);
+    border-color: #6ea8fe;
+    color: var(--input-color, #dee2e6);
+}
+
+[data-bs-theme="dark"] .form-label {
+    color: var(--text-primary, #dee2e6);
+}
+
+[data-bs-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
 }
 
 #theme-toggle {
