@@ -104,7 +104,17 @@ jobs:
       - name: Parse markdown intent with frontmatter
         shell: bash
         run: |
-          INTENT_FILE="${{ github.event.inputs.intent_file || format('agent-intents/{0}', github.event.head_commit.modified[0]) }}"
+          INTENT_FILE="${{ github.event.inputs.intent_file }}"
+          if [ -z "$INTENT_FILE" ]; then
+            INTENT_FILE=$(python3 -c "
+import json, os
+modified = ${{ toJSON(github.event.head_commit.modified) }}
+for f in modified:
+    if f.startswith('agent-intents/') and f.endswith('.md'):
+        print(f)
+        break
+" 2>/dev/null)
+          fi
           if [ ! -f "$INTENT_FILE" ]; then
             INTENT_FILE=$(ls -t agent-intents/*.md 2>/dev/null | head -1)
             if [ -z "$INTENT_FILE" ]; then
