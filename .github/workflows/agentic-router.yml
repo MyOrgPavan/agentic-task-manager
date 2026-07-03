@@ -140,9 +140,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          SCOPE="${SCOPE:-backend}"
-          TICKET="${TICKET:-0000}"
-          COMMAND="${COMMAND:-execute}"
+          SCOPE="${scope:-backend}"
+          TICKET="${ticket:-0000}"
+          COMMAND="${command:-execute}"
           if [ "$SCOPE" = "deploy" ]; then
             gh workflow run "Phase 4 - Production (Environment Gate)" \
               --ref main \
