@@ -1,4 +1,15 @@
 /* FR-07 */
+html, body {
+    height: 100%;
+}
+
 body {
+    display: flex;
+    flex-direction: column;
     background-color: #f8f9fa;
 }
+
+.content-wrapper {
+    flex: 1 0 auto;
+}
+
