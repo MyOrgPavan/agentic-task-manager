@@ -27,10 +27,27 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
       - run: pytest backend/tests/ -v
-      - name: Deploy to staging
+
+      - name: Build Docker image
         run: |
-          echo "Deploying to staging environment..."
+          docker compose build staging
+
+      - name: Deploy staging container
+        run: |
+          echo "Stopping existing staging container..."
+          docker compose stop staging || true
+          docker compose rm -f staging || true
+          echo "Starting new staging container..."
+          docker compose up -d staging
           echo "Staging deployment complete."
+          echo "Container: task-manager-staging"
+          echo "Port: 8080"
+
+      - name: Health check
+        run: |
+          sleep 3
+          curl -sf http://localhost:8080/ || echo "Warning: Health check failed"
+
       - uses: actions/upload-artifact@v4
         with:
           name: staging-deployment

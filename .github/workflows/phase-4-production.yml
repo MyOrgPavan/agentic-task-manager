@@ -7,6 +7,7 @@ on:
       ref:
         description: "Git ref to deploy to production"
         required: true
+        default: "main"
 
 permissions:
   contents: read
@@ -23,7 +24,7 @@ jobs:
       deployments: write
     environment:
       name: production
-      url: https://app.example.com
+      url: http://localhost:8080
     steps:
       - uses: actions/checkout@v4
         with:
@@ -33,10 +34,26 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
       - run: pytest backend/tests/ -v
-      - name: Deploy to production
+
+      - name: Build production Docker image
+        run: |
+          docker compose build production
+
+      - name: Deploy production container
         run: |
           echo "Deploying ${{ github.event.inputs.ref }} to production..."
+          docker compose stop production || true
+          docker compose rm -f production || true
+          docker compose up -d production
           echo "Production deployment complete."
+          echo "Container: task-manager-prod"
+          echo "Port: 8080"
+
+      - name: Health check
+        run: |
+          sleep 5
+          curl -sf http://localhost:8080/ || echo "Warning: Health check failed"
+
       - uses: actions/upload-artifact@v4
         with:
           name: production-deployment

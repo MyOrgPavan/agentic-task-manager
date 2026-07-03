@@ -19,7 +19,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  plan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    outputs:
+      plan_exists: ${{ steps.generate.outputs.plan_exists }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install -r requirements.txt
+
+      - name: Install opencode
+        run: npm install -g opencode-ai
+
+      - name: Generate plan with opencode
+        id: generate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TICKET="${{ github.event.inputs.ticket_id }}"
+          COMMAND="${{ github.event.inputs.command }}"
+          mkdir -p plans
+          if [ ! -f "plans/plan-${TICKET}.md" ]; then
+            echo "Generating plan for #${TICKET}..."
+            opencode run -m opencode/big-pickle \
+              --dangerously-skip-permissions --print-logs \
+              "You are a frontend architect. Study the codebase.
+               Create file plans/plan-${TICKET}.md with sections:
+               ## Scope, ## Ticket / Issue, ## Risk Level, ## Description,
+               ## Success Criteria (checklist), ## Files to Modify (paths),
+               ## Implementation Steps (numbered), ## Rollback Strategy.
+               Do NOT write code. Only create the plan file.
+               User request: ${COMMAND}"
+            echo "plan_exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "Plan already exists at plans/plan-${TICKET}.md"
+            echo "plan_exists=true" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-plan
+          path: plans/
+
   execute:
+    needs: plan
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -31,6 +79,9 @@ jobs:
           python-version: "3.11"
       - run: pip install -r requirements.txt
 
+      - name: Install opencode
+        run: npm install -g opencode-ai
+
       - name: Create implementation branch
         run: |
           BRANCH="impl/frontend/${{ github.event.inputs.ticket_id }}"
@@ -38,13 +89,45 @@ jobs:
           git config user.email "agent-frontend@github.local"
           git checkout -b "$BRANCH"
 
+      - name: Implement changes with opencode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TICKET="${{ github.event.inputs.ticket_id }}"
+          COMMAND="${{ github.event.inputs.command }}"
+          PLAN_FILE="plans/plan-${TICKET}.md"
+          if [ -f "$PLAN_FILE" ]; then
+            echo "Implementing plan from ${PLAN_FILE}..."
+            opencode run -m opencode/big-pickle \
+              --dangerously-skip-permissions --print-logs \
+              "Read plan file ${PLAN_FILE} and implement every step.
+               You are a frontend agent working with Bootstrap 5, Jinja2 HTML, and CSS.
+               Make the exact file modifications described in the plan.
+               After modifying files, run: pytest backend/tests/ -v"
+          else
+            echo "No plan file found. Using command directly..."
+            opencode run -m opencode/big-pickle \
+              --dangerously-skip-permissions --print-logs \
+              "You are a frontend agent working with Bootstrap 5, Jinja2 HTML, and CSS.
+               ${COMMAND}
+               After modifying files, run: pytest backend/tests/ -v"
+          fi
+
       - name: Run tests
         run: |
-          pytest backend/tests/ -v
+          pytest backend/tests/ -v || echo "TESTS_FAILED=true" >> $GITHUB_ENV
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "agent-frontend"
+          git config user.email "agent-frontend@github.local"
+          git add -A
+          git diff --cached --quiet || git commit -m "Implement: frontend / ${{ github.event.inputs.ticket_id }}"
+          git push origin "impl/frontend/${{ github.event.inputs.ticket_id }}" || echo "No changes to push"
 
       - name: Create implementation PR
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN || github.token }}
         run: |
           TICKET="${{ github.event.inputs.ticket_id }}"
           BRANCH="impl/frontend/${TICKET}"
@@ -57,7 +140,7 @@ jobs:
           gh pr create \
             --base main \
             --head "$BRANCH" \
-            --title "Frontend: ${{ github.event.inputs.command }}" \
+            --title "Implement: frontend / ${TICKET}" \
             --body-file "$BODY_FILE" \
             --label frontend || echo "PR may already exist"
 

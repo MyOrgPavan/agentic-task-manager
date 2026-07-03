@@ -2,6 +2,7 @@
 services:
   web:
     build: .
+    container_name: task-manager-dev
     ports:
       - "5000:5000"
     env_file:
@@ -11,3 +12,27 @@ services:
     volumes:
       - .:/app
     command: gunicorn --bind 0.0.0.0:5000 --reload "backend.app:create_app()"
+
+  staging:
+    build: .
+    container_name: task-manager-staging
+    ports:
+      - "8080:5000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:///app.db
+      - FLASK_ENV=staging
+    command: gunicorn --bind 0.0.0.0:5000 "backend.app:create_app()"
+
+  production:
+    build: .
+    container_name: task-manager-prod
+    ports:
+      - "8080:5000"
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=sqlite:///app.db
+      - FLASK_ENV=production
+    command: gunicorn --bind 0.0.0.0:5000 --workers 4 "backend.app:create_app()"

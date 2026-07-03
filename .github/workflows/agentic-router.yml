@@ -35,6 +35,7 @@ jobs:
     outputs:
       scope: ${{ steps.route.outputs.scope }}
       ticket: ${{ steps.route.outputs.ticket }}
+      is_deploy: ${{ steps.route.outputs.is_deploy }}
     steps:
       - uses: actions/checkout@v4
       - id: route
@@ -47,6 +48,7 @@ jobs:
 
           # Route based on label
           SCOPE="backend"
+          IS_DEPLOY="false"
           if echo "$LABELS" | grep -q "frontend"; then
             SCOPE="frontend"
           elif echo "$LABELS" | grep -q "db"; then
@@ -55,12 +57,17 @@ jobs:
             SCOPE="docs"
           elif echo "$LABELS" | grep -q "infra"; then
             SCOPE="infra"
+          elif echo "$LABELS" | grep -q "deploy"; then
+            SCOPE="deploy"
+            IS_DEPLOY="true"
           fi
 
           echo "scope=$SCOPE" >> $GITHUB_OUTPUT
           echo "ticket=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+          echo "is_deploy=$IS_DEPLOY" >> $GITHUB_OUTPUT
 
       - name: Trigger plan workflow
+        if: steps.route.outputs.is_deploy != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -70,6 +77,16 @@ jobs:
             --ref main \
             --field scope="$SCOPE" \
             --field ticket_id="$TICKET"
+
+      - name: Trigger production deploy
+        if: steps.route.outputs.is_deploy == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TICKET="${{ steps.route.outputs.ticket }}"
+          gh workflow run "Phase 4 - Production (Environment Gate)" \
+            --ref main \
+            --field ref="main"
 
   parse-intent:
     if: github.event_name != 'issues'
@@ -120,10 +137,16 @@ jobs:
           SCOPE="${SCOPE:-backend}"
           TICKET="${TICKET:-0000}"
           COMMAND="${COMMAND:-execute}"
-          gh workflow run "Agent - ${SCOPE^}" \
-            --ref main \
-            --field ticket_id="$TICKET" \
-            --field command="$COMMAND"
+          if [ "$SCOPE" = "deploy" ]; then
+            gh workflow run "Phase 4 - Production (Environment Gate)" \
+              --ref main \
+              --field ref="main"
+          else
+            gh workflow run "Agent - ${SCOPE^}" \
+              --ref main \
+              --field ticket_id="$TICKET" \
+              --field command="$COMMAND"
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
