@@ -36,7 +36,7 @@ jobs:
         run: |
           PR_NUMBER="${{ github.event.pull_request.number || github.event.inputs.pr_number }}"
           BODY=$(gh pr view "$PR_NUMBER" --json body --jq '.body')
-          SCOPE=$(echo "$BODY" | grep -oP '## Scope\n\K\w+' || echo "backend")
+          SCOPE=$(echo "$BODY" | grep -oP '## Scope\s*\n\s*\K\w+' || echo "backend")
           SCOPE=$(echo "$SCOPE" | tr '[:upper:]' '[:lower:]')
           TICKET=$(echo "$BODY" | grep -oP '#\K\d+' | head -1 || echo "0000")
           echo "scope=$SCOPE" >> $GITHUB_OUTPUT
@@ -109,7 +109,7 @@ jobs:
       - name: Open implementation PR
         if: success()
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           SCOPE="${{ needs.check-plan-approved.outputs.scope }}"
           TICKET="${{ needs.check-plan-approved.outputs.ticket }}"
@@ -120,12 +120,20 @@ jobs:
             echo "Implementation of scope=${SCOPE} ticket=${TICKET}" > /tmp/pr-body.md
             BODY_FILE="/tmp/pr-body.md"
           fi
-          gh pr create \
-            --base main \
-            --head "$BRANCH" \
-            --title "Implement: ${SCOPE} / ${TICKET}" \
-            --body-file "$BODY_FILE" \
-            --label implementation
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --json number --jq '.[0].number' 2>/dev/null)
+          if [ -n "$EXISTING_PR" ]; then
+            echo "Updating existing PR #$EXISTING_PR for branch $BRANCH"
+            gh pr edit "$EXISTING_PR" \
+              --title "Implement: ${SCOPE} / ${TICKET}" \
+              --body-file "$BODY_FILE"
+          else
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "Implement: ${SCOPE} / ${TICKET}" \
+              --body-file "$BODY_FILE" \
+              --label implementation
+          fi
 
       - uses: actions/upload-artifact@v4
         with:
