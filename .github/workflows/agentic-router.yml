@@ -94,6 +94,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -106,8 +107,12 @@ jobs:
         run: |
           INTENT_FILE="${{ github.event.inputs.intent_file }}"
           if [ -z "$INTENT_FILE" ]; then
-            # Pick the most recently modified intent file
-            INTENT_FILE=$(ls -t agent-intents/*.md 2>/dev/null | head -1)
+            # Find intent files changed in the triggering commit
+            INTENT_FILE=$(git diff-tree --no-commit-id -r --name-only HEAD | grep '^agent-intents/.*\.md$' | head -1)
+          fi
+          if [ -z "$INTENT_FILE" ] || [ ! -f "$INTENT_FILE" ]; then
+            # Fallback: scan the directory
+            INTENT_FILE=$(ls agent-intents/*.md 2>/dev/null | head -1)
           fi
           if [ -z "$INTENT_FILE" ] || [ ! -f "$INTENT_FILE" ]; then
             echo "No intent files found in agent-intents/"
@@ -118,11 +123,12 @@ jobs:
           FRONTMATTER=$(python3 scripts/parse_frontmatter.py "$INTENT_FILE")
           echo "$FRONTMATTER"
           echo "$FRONTMATTER" >> $GITHUB_ENV
+          echo "INTENT_FILE=$INTENT_FILE" >> $GITHUB_ENV
 
       - name: Create lock file
         run: |
           mkdir -p locks
-          INTENT_FILE="${{ github.event.inputs.intent_file || format('agent-intents/{0}', github.event.head_commit.modified[0]) }}"
+          INTENT_FILE="${INTENT_FILE}"
           LOCK_FILE="locks/$(basename "$INTENT_FILE" .md).lock"
           echo "Lock created at $(date)" > "$LOCK_FILE"
           git config user.name "agentic-workflow-processor"
