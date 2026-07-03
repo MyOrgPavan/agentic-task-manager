@@ -2,7 +2,7 @@ name: Agent - Execute
 # A-01, A-03, A-04, B-03, A-05, V-01, V-02, V-03, V-04, V-05, V-06, V-07, F-11
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, labeled]
   workflow_dispatch:
     inputs:
