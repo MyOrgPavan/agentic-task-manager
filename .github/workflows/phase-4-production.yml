@@ -35,6 +35,9 @@ jobs:
       - run: pip install -r requirements.txt
       - run: pytest backend/tests/ -v
 
+      - name: Create .env for Docker
+        run: cp .env.example .env
+
       - name: Build production Docker image
         run: |
           docker compose build production
