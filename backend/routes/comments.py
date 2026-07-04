@@ -10,7 +10,11 @@ comments_bp = Blueprint("comments", __name__, template_folder="../templates")
 @comments_bp.route("/tasks/<int:task_id>/comments", methods=["GET"])
 @login_required
 def list_comments(task_id):
-    task = Task.query.join(Project).filter(Task.id == task_id, Project.user_id == current_user.id).first_or_404()
+    task = (
+        Task.query.join(Project)
+        .filter(Task.id == task_id, Project.user_id == current_user.id)
+        .first_or_404()
+    )
     comments = Comment.query.filter_by(task_id=task.id).order_by(Comment.created_at.asc()).all()
     if request.headers.get("Accept") == "application/json":
         return jsonify([{
@@ -23,7 +27,11 @@ def list_comments(task_id):
 @comments_bp.route("/tasks/<int:task_id>/comments", methods=["POST"])
 @login_required
 def create_comment(task_id):
-    task = Task.query.join(Project).filter(Task.id == task_id, Project.user_id == current_user.id).first_or_404()
+    task = (
+        Task.query.join(Project)
+        .filter(Task.id == task_id, Project.user_id == current_user.id)
+        .first_or_404()
+    )
     content = request.form.get("content", "").strip()
     if not content:
         flash("Comment cannot be empty.", "danger")

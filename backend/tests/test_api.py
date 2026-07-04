@@ -85,7 +85,9 @@ class TestAuthAPI:
 
 class TestProjectsAPI:
     def test_list_projects_requires_auth(self, client):
-        resp = client.get("/projects", headers={"Accept": "application/json"}, follow_redirects=True)
+        resp = client.get(
+            "/projects", headers={"Accept": "application/json"}, follow_redirects=True
+        )
         assert resp.status_code == 200
 
     def test_create_project(self, auth_client):
@@ -93,7 +95,9 @@ class TestProjectsAPI:
         assert resp.status_code == 200
 
     def test_create_project_api_json(self, auth_client):
-        resp = auth_client.post("/projects", json={"title": "API Project"}, content_type="application/json", follow_redirects=True)
+        resp = auth_client.post(
+            "/projects", json={"title": "API Project"}, follow_redirects=True
+        )
         assert resp.status_code == 200
 
     def test_get_project(self, auth_client):
@@ -149,7 +153,9 @@ class TestCommentsAPI:
     def test_create_comment(self, auth_client):
         auth_client.post("/projects", data={"title": "Project"}, follow_redirects=True)
         auth_client.post("/projects/1/tasks", data={"title": "Task"}, follow_redirects=True)
-        resp = auth_client.post("/tasks/1/comments", data={"content": "Nice work!"}, follow_redirects=True)
+        resp = auth_client.post(
+            "/tasks/1/comments", data={"content": "Nice work!"}, follow_redirects=True
+        )
         assert resp.status_code == 200
 
     def test_get_comments(self, auth_client):

@@ -10,7 +10,11 @@ projects_bp = Blueprint("projects", __name__, template_folder="../templates")
 @projects_bp.route("", methods=["GET"])
 @login_required
 def list_projects():
-    projects = Project.query.filter_by(user_id=current_user.id).order_by(Project.updated_at.desc()).all()
+    projects = (
+        Project.query.filter_by(user_id=current_user.id)
+        .order_by(Project.updated_at.desc())
+        .all()
+    )
     if request.headers.get("Accept") == "application/json":
         return jsonify([{
             "id": p.id, "title": p.title, "description": p.description,
@@ -36,7 +40,9 @@ def create_project():
         flash("Title is required.", "danger")
         return redirect(url_for("projects.list_projects"))
 
-    project = Project(title=title, description=description, priority=priority, user_id=current_user.id)
+    project = Project(
+        title=title, description=description, priority=priority, user_id=current_user.id
+    )
     db.session.add(project)
     db.session.commit()
     flash("Project created.", "success")

@@ -78,6 +78,7 @@ class TestProjectModel:
             db.session.add(p)
             db.session.commit()
             project = db.session.get(Project, p.id)
+            assert project is not None
             assert project.owner.username == "owneruser"
 
 
@@ -110,6 +111,7 @@ class TestTaskModel:
             db.session.add(t)
             db.session.commit()
             task = db.session.get(Task, t.id)
+            assert task is not None
             assert task.project.title == "Project"
             assert task.project.tasks.count() == 1
 
@@ -132,6 +134,7 @@ class TestCommentModel:
             db.session.commit()
             assert c.id is not None
             comment = db.session.get(Comment, c.id)
+            assert comment is not None
             assert comment.author.username == "commentuser"
 
     def test_comment_task_relationship(self, app):
@@ -150,5 +153,6 @@ class TestCommentModel:
             db.session.add(c)
             db.session.commit()
             task = db.session.get(Task, t.id)
+            assert task is not None
             assert task.comments.count() == 1
             assert task.comments.first().content == "Comment"

@@ -53,7 +53,11 @@ def create_task(project_id):
 @tasks_bp.route("/tasks/<int:task_id>", methods=["GET"])
 @login_required
 def get_task(task_id):
-    task = Task.query.join(Project).filter(Task.id == task_id, Project.user_id == current_user.id).first_or_404()
+    task = (
+        Task.query.join(Project)
+        .filter(Task.id == task_id, Project.user_id == current_user.id)
+        .first_or_404()
+    )
     if request.headers.get("Accept") == "application/json":
         return jsonify({
             "id": task.id, "title": task.title, "description": task.description,
@@ -66,7 +70,11 @@ def get_task(task_id):
 @tasks_bp.route("/tasks/<int:task_id>", methods=["PUT"])
 @login_required
 def update_task(task_id):
-    task = Task.query.join(Project).filter(Task.id == task_id, Project.user_id == current_user.id).first_or_404()
+    task = (
+        Task.query.join(Project)
+        .filter(Task.id == task_id, Project.user_id == current_user.id)
+        .first_or_404()
+    )
     data = request.get_json()
     task.title = data.get("title", task.title)
     task.description = data.get("description", task.description)
@@ -80,7 +88,11 @@ def update_task(task_id):
 @tasks_bp.route("/tasks/<int:task_id>", methods=["DELETE"])
 @login_required
 def delete_task(task_id):
-    task = Task.query.join(Project).filter(Task.id == task_id, Project.user_id == current_user.id).first_or_404()
+    task = (
+        Task.query.join(Project)
+        .filter(Task.id == task_id, Project.user_id == current_user.id)
+        .first_or_404()
+    )
     project_id = task.project_id
     db.session.delete(task)
     db.session.commit()

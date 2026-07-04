@@ -64,7 +64,12 @@ def format_code(file_path: str) -> dict[str, Any]:
     with open(file_path, "w") as f:
         f.write("\n".join(formatted) + "\n")
 
-    return {"status": "formatted", "file": file_path, "original_lines": len(lines), "final_lines": len(formatted)}
+    return {
+        "status": "formatted",
+        "file": file_path,
+        "original_lines": len(lines),
+        "final_lines": len(formatted),
+    }
 
 
 def run_tests(test_path: str | None = None) -> dict[str, Any]:

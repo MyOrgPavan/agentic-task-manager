@@ -8,7 +8,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 db = SQLAlchemy()
 
 
-class User(UserMixin, db.Model):
+class User(UserMixin, db.Model):  # type: ignore[name-defined]
     __tablename__ = "users"
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -26,7 +26,7 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
 
-class Project(db.Model):
+class Project(db.Model):  # type: ignore[name-defined]
     __tablename__ = "projects"
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -35,13 +35,17 @@ class Project(db.Model):
     priority = db.Column(db.String(20), default="medium")
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
-    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+    updated_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
 
     tasks = db.relationship("Task", backref="project", lazy="dynamic", cascade="all, delete-orphan")
-    comments = db.relationship("Comment", backref="project", lazy="dynamic", cascade="all, delete-orphan")
+    comments = db.relationship(
+        "Comment", backref="project", lazy="dynamic", cascade="all, delete-orphan"
+    )
 
 
-class Task(db.Model):
+class Task(db.Model):  # type: ignore[name-defined]
     __tablename__ = "tasks"
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200), nullable=False)
@@ -51,13 +55,17 @@ class Task(db.Model):
     due_date = db.Column(db.Date, nullable=True)
     project_id = db.Column(db.Integer, db.ForeignKey("projects.id"), nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC))
-    updated_at = db.Column(db.DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+    updated_at = db.Column(
+        db.DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC)
+    )
 
     assignee = db.relationship("User", foreign_keys=[assignee_id])
-    comments = db.relationship("Comment", backref="task", lazy="dynamic", cascade="all, delete-orphan")
+    comments = db.relationship(
+        "Comment", backref="task", lazy="dynamic", cascade="all, delete-orphan"
+    )
 
 
-class Comment(db.Model):
+class Comment(db.Model):  # type: ignore[name-defined]
     __tablename__ = "comments"
     id = db.Column(db.Integer, primary_key=True)
     content = db.Column(db.Text, nullable=False)
