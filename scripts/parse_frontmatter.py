@@ -1,7 +1,7 @@
 import re
 import sys
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 filepath = sys.argv[1]
 with open(filepath) as f:
